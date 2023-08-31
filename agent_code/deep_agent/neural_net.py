@@ -7,15 +7,17 @@ import os
 
 from .constants import ACTIONS
 
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
 class NeuralNetwork(nn.Module):
     def __init__(self):
         super().__init__()
         #self.flatten = nn.Flatten()
-        self.linear1 = nn.Linear(176 * 5, 512, dtype=torch.double)
+        self.linear1 = nn.Linear(176 * 5, 128, dtype=torch.double)
         self.relu1 = nn.ReLU()
-        self.linear2 = nn.Linear(512, 512, dtype=torch.double)
+        self.linear2 = nn.Linear(128, 128, dtype=torch.double)
         self.relu2 = nn.ReLU()
-        self.linear3 = nn.Linear(512, len(ACTIONS), dtype=torch.double)
+        self.linear3 = nn.Linear(128, len(ACTIONS), dtype=torch.double)
 
     def forward(self, x):
         #x = self.flatten(x)
@@ -39,8 +41,8 @@ def uniquify(path):
 class Trainer:
     def __init__(self, model_file_name, loss_fn, optimizer_constructor, gamma, main_model_update = 4, target_model_update = 100) -> None:
         self.model_file_name = model_file_name
-        self.main_model = NeuralNetwork()
-        self.target_model = NeuralNetwork()
+        self.main_model = NeuralNetwork().to(device)
+        self.target_model = NeuralNetwork().to(device)
 
         if os.path.isfile(model_file_name):
             self.main_model.load_state_dict(torch.load(model_file_name))
@@ -61,15 +63,21 @@ class Trainer:
         self.last_pred = self.main_model.forward(features)
         return self.last_pred
 
-    def update(self, new_features, last_action, reward):
-        with torch.no_grad():
-            target_pred = self.target_model.forward(new_features)
-
+    def update(self, last_action, reward, new_features = None):
         y = torch.clone(self.last_pred)
-        y[last_action] = reward + self.gamma * torch.max(target_pred)
+
+        if new_features is not None:
+            with torch.no_grad():
+                target_pred = self.target_model.forward(new_features)
+                y[last_action] = reward + self.gamma * torch.max(target_pred)
+        else:
+            y[last_action] = reward
 
         loss = self.loss_fn(self.last_pred, y)
-        loss.backward()
+        try:
+            loss.backward()
+        except:
+            pass
 
         self.counter += 1
         if self.counter % self.main_model_update == 0:
@@ -78,5 +86,7 @@ class Trainer:
 
         if self.counter % self.target_model_update == 0:
             self.target_model.load_state_dict(self.main_model.state_dict())
-            torch.save(self.target_model.state_dict(), self.model_file_name)
-            torch.save(self.target_model.state_dict(), uniquify(self.model_file_name))
+
+    def save_model(self, override = True):
+        file_name = self.model_file_name if override else uniquify(self.model_file_name)
+        torch.save(self.target_model.state_dict(), file_name)

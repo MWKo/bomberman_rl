@@ -4,7 +4,7 @@ import random
 import numpy as np
 import torch
 from .constants import MODEL_FILE_NAME, ACTIONS
-from .neural_net import NeuralNetwork, Trainer
+from .neural_net import NeuralNetwork, Trainer, device
 from settings import BOMB_TIMER
 
 def setup(self):
@@ -26,12 +26,12 @@ def setup(self):
         self.trainer = Trainer(
             model_file_name=MODEL_FILE_NAME,
             loss_fn=torch.nn.HuberLoss(),
-            optimizer_constructor=lambda params: torch.optim.Adam(params, lr=0.01),
-            gamma=0.9
+            optimizer_constructor=lambda params: torch.optim.Adam(params, lr=0.03),
+            gamma=0.99
         )
         self.forward = self.trainer.forward
     else:
-        self.model = NeuralNetwork()
+        self.model = NeuralNetwork().to(device)
         if os.path.isfile(MODEL_FILE_NAME):
             self.model.load_state_dict(torch.load("deep-model.pt"))
         self.forward = self.model.forward
@@ -68,6 +68,8 @@ def act(self, game_state: dict) -> str:
     # todo Exploration vs exploitation
     random_prob = .1
     q_vector = self.forward(state_to_features(game_state))
+
+    #print(q_vector)
 
     if self.train and random.random() < random_prob:
         self.logger.debug("Choosing action purely at random.")
@@ -129,4 +131,4 @@ def state_to_features(game_state: dict) -> np.array:
         others_pos[x, y] = 1
     channels.extend(others_pos[arena != -1])
 
-    return torch.tensor(channels, dtype=torch.float).double()
+    return torch.tensor(channels, dtype=torch.float).double().to(device=device)

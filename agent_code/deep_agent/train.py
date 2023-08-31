@@ -18,6 +18,9 @@ RECORD_ENEMY_TRANSITIONS = 1.0  # record enemy transitions with probability ...
 # Events
 PLACEHOLDER_EVENT = "PLACEHOLDER"
 
+SAVE_EVERY_ROUNDS = 50
+round_counter = 0
+
 
 def uniquify(path):
     filename, extension = os.path.splitext(path)
@@ -62,7 +65,7 @@ def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_
     """
     self.logger.debug(f'Encountered game event(s) {", ".join(map(repr, events))} in step {new_game_state["step"]}')
     
-    self.trainer.update(state_to_features(new_game_state), ACTIONS.index(self_action), reward_from_events(self, events))
+    self.trainer.update(ACTIONS.index(self_action), reward_from_events(self, events), state_to_features(new_game_state))
     
     # Idea: Add your own events to hand out rewards
     #if ...:
@@ -85,6 +88,16 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
 
     :param self: The same object that is passed to all of your callbacks.
     """
+    global round_counter
+
+    round_counter += 1
+
+    self.trainer.update(ACTIONS.index(last_action), reward_from_events(self, events))
+
+    if round_counter >= SAVE_EVERY_ROUNDS:
+        self.trainer.save_model()
+        round_counter = 0
+
     self.logger.debug(f'Encountered event(s) {", ".join(map(repr, events))} in final step')
     self.transitions.append(Transition(state_to_features(last_game_state), last_action, None, reward_from_events(self, events)))
 
