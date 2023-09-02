@@ -5,7 +5,7 @@ from torchvision.transforms import ToTensor
 
 import os
 
-from .constants import ACTIONS
+from .constants import *
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -13,7 +13,7 @@ class NeuralNetwork(nn.Module):
     def __init__(self):
         super().__init__()
         #self.flatten = nn.Flatten()
-        self.linear1 = nn.Linear(176 * 5, 128, dtype=torch.double)
+        self.linear1 = nn.Linear(FEATURE_SIZE, 128, dtype=torch.double)
         self.relu1 = nn.ReLU()
         self.linear2 = nn.Linear(128, 128, dtype=torch.double)
         self.relu2 = nn.ReLU()
@@ -73,8 +73,8 @@ class Trainer:
         else:
             y[last_action] = reward
 
-        loss = self.loss_fn(self.last_pred, y)
         try:
+            loss = self.loss_fn(self.last_pred, y)
             loss.backward()
         except:
             pass

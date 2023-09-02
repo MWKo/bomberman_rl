@@ -3,9 +3,9 @@ import random
 
 import numpy as np
 import torch
-from .constants import MODEL_FILE_NAME, ACTIONS
+from .constants import *
 from .neural_net import NeuralNetwork, Trainer, device
-from settings import BOMB_TIMER
+from settings import BOMB_TIMER, ROWS, COLS
 
 def setup(self):
     """
@@ -66,7 +66,7 @@ def act(self, game_state: dict) -> str:
     :return: The action to take as a string.
     """
     # todo Exploration vs exploitation
-    random_prob = .1
+    random_prob = .3
     q_vector = self.forward(state_to_features(game_state))
 
     #print(q_vector)
@@ -74,7 +74,7 @@ def act(self, game_state: dict) -> str:
     if self.train and random.random() < random_prob:
         self.logger.debug("Choosing action purely at random.")
         # 80%: walk in any direction. 10% wait. 10% bomb.
-        return np.random.choice(ACTIONS, p=[.2, .2, .2, .2, .1, .1])
+        return np.random.choice(ACTIONS, p=[.25, .25, .25, .25, .0, .0])
 
     self.logger.debug("Querying model for action.")
     action = ACTIONS[torch.argmax(q_vector)]
@@ -102,33 +102,22 @@ def state_to_features(game_state: dict) -> np.array:
     # For example, you could construct several channels of equal shape, ...
     channels = []
     arena = game_state['field']
+    _, _, _, (pos_x, pos_y) = game_state['self']
+    ox, oy = -pos_x + ROWS - 2, -pos_y + COLS - 2
+
+    features = np.zeros(FEATURE_SHAPE)
 
     # WALL = -1, FREE = 0, CRATE = 1
-    # add crates
-    channels.extend(arena[arena != -1])
+    features[FEAT_WALLS, ox : ox+arena.shape[0], oy : oy+arena.shape[1]] = np.maximum(-arena, 0)
+    features[FEAT_CRATES, ox : ox+arena.shape[0], oy : oy+arena.shape[1]] = np.maximum(arena, 0)
 
-    # add coins
-    coins = np.zeros(arena.shape)
     for (x, y) in game_state['coins']:
-        coins[x, y] = 1
-    channels.extend(coins[arena != -1])
+        features[FEAT_COINS, ox + x, oy + y] = 1
 
-    # add bombs
-    bombs = np.zeros(arena.shape)
-    for ((x, y), timer) in game_state['bombs']:
-        bombs[x, y] =  1 + BOMB_TIMER - timer
-    channels.extend(bombs[arena != -1])
+    for ((x, y), timer) in game_state['bombs']: 
+        features[FEAT_BOMBS, ox + x, oy + y] = 1 + BOMB_TIMER - timer
 
-    # own position
-    own_pos = np.zeros(arena.shape)
-    _, _, _, (x, y) = game_state['self']
-    own_pos[x, y] = 1
-    channels.extend(own_pos[arena != -1])
-
-    # others position
-    others_pos = np.zeros(arena.shape)
     for _, _, _, (x, y) in game_state['others']:
-        others_pos[x, y] = 1
-    channels.extend(others_pos[arena != -1])
+        features[FEAT_OTHERS, ox + x, oy + y] = 1
 
-    return torch.tensor(channels, dtype=torch.float).double().to(device=device)
+    return torch.tensor(features.reshape(-1), dtype=torch.float).double().to(device=device)
