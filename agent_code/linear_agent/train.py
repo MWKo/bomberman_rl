@@ -30,7 +30,7 @@ learning_rate = 0.005
 def update_model(self, y, old_features, self_action):
     action_index = ACTIONS.index(self_action)
     #print(learning_rate * (old_features * (y + np.dot(self.model[:, action_index], old_features))))
-    self.model[:, action_index] -= learning_rate * (old_features * (y + np.dot(self.model[:, action_index], old_features)))
+    self.model[:, action_index] += learning_rate * (old_features * (y - np.dot(self.model[:, action_index], old_features)))
 
 
 def setup_training(self):
@@ -115,7 +115,7 @@ def reward_from_events(self, events: List[str]) -> int:
         e.COIN_COLLECTED: 1,
         e.KILLED_OPPONENT: 5,
         e.INVALID_ACTION: -0.5,
-        e.WAITED: -5,
+        #e.WAITED: -5,
         e.KILLED_SELF: -5,
         PLACEHOLDER_EVENT: -.1  # idea: the custom event is bad
     }

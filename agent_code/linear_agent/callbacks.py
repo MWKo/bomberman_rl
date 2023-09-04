@@ -55,8 +55,46 @@ def act(self, game_state: dict) -> str:
     action = ACTIONS[np.argmax(q_vector)]
     return action
 
+def find_closest_coin_action(game_state: dict):
+    _, _, _, self_position = game_state['self']
+    arena = game_state['field']
+    coins = game_state['coins']
+    queue = [(self_position, 'WAIT')]
+    visited = np.zeros(arena.shape, dtype=np.bool_)
+    while len(queue) > 0:
+        (x, y), action = queue.pop(0)
+        if visited[x, y]:
+            continue
+        visited[x, y] = True
+
+        if (x, y) in coins:
+            return action
+        
+        for (nx, ny), naction in [((x - 1, y), "LEFT"), ((x + 1, y), "RIGHT"), ((x, y - 1), "UP"), ((x, y + 1), "DOWN")]:
+            if nx < 0 or nx >= COLS or ny < 0 or ny >= ROWS:
+                continue
+            if arena[nx, ny] == -1 or visited[nx, ny]:
+                continue
+            queue.append(((nx, ny), naction if action == "WAIT" else action))
+    
+    return None
+
+
+
 
 def state_to_features(game_state: dict) -> np.array:
+    if game_state is None:
+        return None
+    
+    coin_action = find_closest_coin_action(game_state)
+    features = np.zeros(FEATURE_SIZE)
+    if coin_action is not None:
+        features[ACTIONS.index(coin_action)] = 1
+    return features
+
+
+
+def state_to_features_old(game_state: dict) -> np.array:
     """
     *This is not a required function, but an idea to structure your code.*
 
