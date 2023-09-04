@@ -73,7 +73,7 @@ def find_closest_coin_action(game_state: dict):
         for (nx, ny), naction in [((x - 1, y), "LEFT"), ((x + 1, y), "RIGHT"), ((x, y - 1), "UP"), ((x, y + 1), "DOWN")]:
             if nx < 0 or nx >= COLS or ny < 0 or ny >= ROWS:
                 continue
-            if arena[nx, ny] == -1 or visited[nx, ny]:
+            if arena[nx, ny] != 0 or visited[nx, ny]:
                 continue
             queue.append(((nx, ny), naction if action == "WAIT" else action))
     
