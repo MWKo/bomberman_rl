@@ -61,7 +61,7 @@ def act(self, game_state: dict) -> str:
         print(q_vector)
         print()
     """
-    
+
     return action
 
 
@@ -185,7 +185,7 @@ def state_to_features_old(game_state: dict) -> np.array:
     _, _, _, (pos_x, pos_y) = game_state['self']
     ox, oy = -pos_x + ROWS - 2, -pos_y + COLS - 2
 
-    features = np.zeros(FEATURE_SHAPE)
+    features = np.zeros(FEATURE_SHAPE_OLD)
 
     # WALL = -1, FREE = 0, CRATE = 1
     features[FEAT_WALLS, ox : ox+arena.shape[0], oy : oy+arena.shape[1]] = np.maximum(-arena, 0)
