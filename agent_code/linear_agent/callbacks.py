@@ -114,14 +114,14 @@ def state_to_features(game_state: dict) -> np.array:
         return None
     
     _, _, _, self_position = game_state['self']
-    sx, sy = self_position
+    sx, sy = self_position  
     
     features = np.zeros(FEATURE_SIZE)
-    coin_features = features[:len(ACTIONS)]
-    crate_features = features[len(ACTIONS) : 2*len(ACTIONS) + 1]
-    live_saving_features = features[2*len(ACTIONS) + 1 : 3*len(ACTIONS) + 1]
-    deadly_features = features[3*len(ACTIONS) + 1 : 4*len(ACTIONS) + 1]
-    bomb_survivable_feature = features[4*len(ACTIONS) + 1 : 4*len(ACTIONS) + 2]
+    coin_features = features[COIN_FEATURES_START : COIN_FEATURES_START + COIN_FEATURES_LENGTH]
+    crate_features = features[CRATE_FEATURES_START : CRATE_FEATURES_START + CRATE_FEATURES_LENGTH]
+    live_saving_features = features[LIVE_SAVING_FEATURES_START : LIVE_SAVING_FEATURES_START + LIVE_SAVING_FEATURES_LENGTH]
+    deadly_features = features[DEADLY_FEATURES_START : DEADLY_FEATURES_START + DEADLY_FEATURES_LENGTH]
+    bomb_survivable_feature = features[BOMB_SURVIVABLE_FEATURES_START : BOMB_SURVIVABLE_FEATURES_START + BOMB_SURVIVABLE_FEATURES_LENGTH]
     
     coin_action, _ = find_closest_position_action(game_state, lambda pos, state: pos in state['coins'])
     if coin_action is not None:
@@ -160,44 +160,46 @@ def state_to_features(game_state: dict) -> np.array:
 
     return features
 
-
-def state_to_features_old(game_state: dict) -> np.array:
-    """
-    *This is not a required function, but an idea to structure your code.*
-
-    Converts the game state to the input of your model, i.e.
-    a feature vector.
-
-    You can find out about the state of the game environment via game_state,
-    which is a dictionary. Consult 'get_state_for_agent' in environment.py to see
-    what it contains.
-
-    :param game_state:  A dictionary describing the current game board.
-    :return: np.array
-    """
-    # This is the dict before the game begins and after it ends
-    if game_state is None:
-        return None
-
-    # For example, you could construct several channels of equal shape, ...
-    channels = []
-    arena = game_state['field']
-    _, _, _, (pos_x, pos_y) = game_state['self']
-    ox, oy = -pos_x + ROWS - 2, -pos_y + COLS - 2
-
-    features = np.zeros(FEATURE_SHAPE_OLD)
-
-    # WALL = -1, FREE = 0, CRATE = 1
-    features[FEAT_WALLS, ox : ox+arena.shape[0], oy : oy+arena.shape[1]] = np.maximum(-arena, 0)
-    features[FEAT_CRATES, ox : ox+arena.shape[0], oy : oy+arena.shape[1]] = np.maximum(arena, 0)
-
-    for (x, y) in game_state['coins']:
-        features[FEAT_COINS, ox + x, oy + y] = 1
-
-    for ((x, y), timer) in game_state['bombs']: 
-        features[FEAT_BOMBS, ox + x, oy + y] = 1 + BOMB_TIMER - timer
-
-    for _, _, _, (x, y) in game_state['others']:
-        features[FEAT_OTHERS, ox + x, oy + y] = 1
-
-    return features.reshape(-1)
+# Old state_to_features
+# 
+# def state_to_features_old(game_state: dict) -> np.array:
+#     """
+#     *This is not a required function, but an idea to structure your code.*
+# 
+#     Converts the game state to the input of your model, i.e.
+#     a feature vector.
+# 
+#     You can find out about the state of the game environment via game_state,
+#     which is a dictionary. Consult 'get_state_for_agent' in environment.py to see
+#     what it contains.
+# 
+#     :param game_state:  A dictionary describing the current game board.
+#     :return: np.array
+#     """
+#     # This is the dict before the game begins and after it ends
+#     if game_state is None:
+#         return None
+# 
+#     # For example, you could construct several channels of equal shape, ...
+#     channels = []
+#     arena = game_state['field']
+#     _, _, _, (pos_x, pos_y) = game_state['self']
+#     ox, oy = -pos_x + ROWS - 2, -pos_y + COLS - 2
+# 
+#     features = np.zeros(FEATURE_SHAPE_OLD)
+# 
+#     # WALL = -1, FREE = 0, CRATE = 1
+#     features[FEAT_WALLS, ox : ox+arena.shape[0], oy : oy+arena.shape[1]] = np.maximum(-arena, 0)
+#     features[FEAT_CRATES, ox : ox+arena.shape[0], oy : oy+arena.shape[1]] = np.maximum(arena, 0)
+# 
+#     for (x, y) in game_state['coins']:
+#         features[FEAT_COINS, ox + x, oy + y] = 1
+# 
+#     for ((x, y), timer) in game_state['bombs']: 
+#         features[FEAT_BOMBS, ox + x, oy + y] = 1 + BOMB_TIMER - timer
+# 
+#     for _, _, _, (x, y) in game_state['others']:
+#         features[FEAT_OTHERS, ox + x, oy + y] = 1
+# 
+#     return features.reshape(-1)
+# 
