@@ -30,7 +30,7 @@ def setup(self):
         self.logger.info("Loading model from saved state.")
         with open(MODEL_FILE_NAME, "rb") as file:
             self.model = pickle.load(file)
-        print(self.model)
+        # print(self.model)
 
 
 def act(self, game_state: dict) -> str:
