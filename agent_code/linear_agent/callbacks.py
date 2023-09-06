@@ -85,10 +85,9 @@ def get_bomb_explosion_fields(position, arena):
         explosion_fields.append((x + dx * 3, y + dy * 3))
     return explosion_fields
 
-def find_closest_position_action(game_state: dict, is_searched_position):
-    _, _, _, self_position = game_state['self']
+def find_closest_position(starting_position, game_state: dict, is_searched_position):
     arena = game_state['field']
-    queue = [(self_position, 'WAIT', 0)]
+    queue = [(starting_position, 'WAIT', 0)]
     visited = np.zeros(arena.shape, dtype=np.bool_)
     while len(queue) > 0:
         (x, y), action, dist = queue.pop(0)
@@ -123,11 +122,11 @@ def state_to_features(game_state: dict) -> np.array:
     deadly_features = features[DEADLY_FEATURES_START : DEADLY_FEATURES_START + DEADLY_FEATURES_LENGTH]
     bomb_survivable_feature = features[BOMB_SURVIVABLE_FEATURES_START : BOMB_SURVIVABLE_FEATURES_START + BOMB_SURVIVABLE_FEATURES_LENGTH]
     
-    coin_action, _ = find_closest_position_action(game_state, lambda pos, state: pos in state['coins'])
+    coin_action, _ = find_closest_position(self_position, game_state, lambda pos, state: pos in state['coins'])
     if coin_action is not None:
         coin_features[ACTIONS.index(coin_action)] = 1
 
-    crate_action, dist = find_closest_position_action(game_state, 
+    crate_action, dist = find_closest_position(self_position, game_state, 
         lambda pos, state: is_next_to(pos, lambda p: state['field'][p[0], p[1]] == 1)
     )
     if crate_action is not None:
@@ -141,7 +140,7 @@ def state_to_features(game_state: dict) -> np.array:
             for deadly_pos in get_bomb_explosion_fields(bomb_pos, game_state['field'])
         ]
         if self_position in incoming_explosion:
-            live_saving_action, _ = find_closest_position_action(game_state, lambda pos, state: pos not in incoming_explosion)
+            live_saving_action, _ = find_closest_position(self_position, game_state, lambda pos, state: pos not in incoming_explosion)
             if live_saving_action is not None:
                 live_saving_features[ACTIONS.index(live_saving_action)] = 1
         else:
@@ -154,7 +153,7 @@ def state_to_features(game_state: dict) -> np.array:
             deadly_features[ACTIONS.index(action)] = 1
     
     bomb_explosion_fields = get_bomb_explosion_fields(self_position, game_state['field'])
-    _, dist_savety = find_closest_position_action(game_state, lambda pos, state: pos not in bomb_explosion_fields)
+    _, dist_savety = find_closest_position(self_position, game_state, lambda pos, state: pos not in bomb_explosion_fields)
     bomb_survivable_feature[0] = 1 if dist_savety <= BOMB_TIMER and dist_savety != -1 else 0
 
 
