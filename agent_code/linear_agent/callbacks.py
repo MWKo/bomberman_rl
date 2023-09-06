@@ -22,13 +22,15 @@ def setup(self):
     """
 
     if self.train or not os.path.isfile(MODEL_FILE_NAME):
+    #if not os.path.isfile(MODEL_FILE_NAME):
         self.logger.info(MODEL_FILE_NAME)
         weights = np.random.rand(FEATURE_SIZE, len(ACTIONS))
-        self.model = weights / weights.sum(axis=0)
+        self.model = weights / np.abs(weights).sum(axis=0)
     else:
         self.logger.info("Loading model from saved state.")
         with open(MODEL_FILE_NAME, "rb") as file:
             self.model = pickle.load(file)
+        print(self.model)
 
 
 def act(self, game_state: dict) -> str:
@@ -46,52 +48,117 @@ def act(self, game_state: dict) -> str:
     if self.train and random.random() < random_prob:
         self.logger.debug("Choosing action purely at random.")
         # 80%: walk in any direction. 10% wait. 10% bomb.
-        return np.random.choice(ACTIONS, p=[.25, .25, .25, .25, .0, .0])
+        return np.random.choice(ACTIONS, p=[.20, .20, .20, .20, .1, .1])
 
     self.logger.debug("Querying model for action.")
     q_vector = self.model.T @ state_to_features(game_state)
-    if not self.train:
-        print(q_vector)
     action = ACTIONS[np.argmax(q_vector)]
+
+    """
+    if not self.train:
+        print(action)
+        print(state_to_features(game_state))
+        print(q_vector)
+        print()
+    """
+    
     return action
 
-def find_closest_coin_action(game_state: dict):
+
+def is_next_to(position, is_searched_position):
+    x, y = position
+    for (nx, ny) in [(x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)]:
+        if nx < 0 or nx >= COLS or ny < 0 or ny >= ROWS:
+            continue
+        if is_searched_position((nx, ny)):
+            return True
+    return False
+
+def get_bomb_explosion_fields(position, arena):
+    x, y = position
+    explosion_fields = [position]
+    for (dx, dy) in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+        if arena[x + dx, y + dy] == -1:
+            continue
+        explosion_fields.append((x + dx, y + dy))
+        explosion_fields.append((x + dx * 2, y + dy * 2))
+        explosion_fields.append((x + dx * 3, y + dy * 3))
+    return explosion_fields
+
+def find_closest_position_action(game_state: dict, is_searched_position):
     _, _, _, self_position = game_state['self']
     arena = game_state['field']
-    coins = game_state['coins']
-    queue = [(self_position, 'WAIT')]
+    queue = [(self_position, 'WAIT', 0)]
     visited = np.zeros(arena.shape, dtype=np.bool_)
     while len(queue) > 0:
-        (x, y), action = queue.pop(0)
+        (x, y), action, dist = queue.pop(0)
         if visited[x, y]:
             continue
         visited[x, y] = True
 
-        if (x, y) in coins:
-            return action
+        if is_searched_position((x, y), game_state):
+            return action, dist
         
         for (nx, ny), naction in [((x - 1, y), "LEFT"), ((x + 1, y), "RIGHT"), ((x, y - 1), "UP"), ((x, y + 1), "DOWN")]:
             if nx < 0 or nx >= COLS or ny < 0 or ny >= ROWS:
                 continue
             if arena[nx, ny] != 0 or visited[nx, ny]:
                 continue
-            queue.append(((nx, ny), naction if action == "WAIT" else action))
+            queue.append(((nx, ny), naction if action == "WAIT" else action, dist + 1))
     
-    return None
-
-
+    return None, -1
 
 
 def state_to_features(game_state: dict) -> np.array:
     if game_state is None:
         return None
     
-    coin_action = find_closest_coin_action(game_state)
+    _, _, _, self_position = game_state['self']
+    sx, sy = self_position
+    
     features = np.zeros(FEATURE_SIZE)
+    coin_features = features[:len(ACTIONS)]
+    crate_features = features[len(ACTIONS) : 2*len(ACTIONS) + 1]
+    live_saving_features = features[2*len(ACTIONS) + 1 : 3*len(ACTIONS) + 1]
+    deadly_features = features[3*len(ACTIONS) + 1 : 4*len(ACTIONS) + 1]
+    bomb_survivable_feature = features[4*len(ACTIONS) + 1 : 4*len(ACTIONS) + 2]
+    
+    coin_action, _ = find_closest_position_action(game_state, lambda pos, state: pos in state['coins'])
     if coin_action is not None:
-        features[ACTIONS.index(coin_action)] = 1
-    return features
+        coin_features[ACTIONS.index(coin_action)] = 1
 
+    crate_action, dist = find_closest_position_action(game_state, 
+        lambda pos, state: is_next_to(pos, lambda p: state['field'][p[0], p[1]] == 1)
+    )
+    if crate_action is not None:
+        crate_features[ACTIONS.index(crate_action)] = 1
+        crate_features[-1] = 1 if dist == 0 else 0
+
+    if len(game_state['bombs']) > 0:
+        incoming_explosion = [
+            deadly_pos
+            for bomb_pos, _ in game_state['bombs']
+            for deadly_pos in get_bomb_explosion_fields(bomb_pos, game_state['field'])
+        ]
+        if self_position in incoming_explosion:
+            live_saving_action, _ = find_closest_position_action(game_state, lambda pos, state: pos not in incoming_explosion)
+            if live_saving_action is not None:
+                live_saving_features[ACTIONS.index(live_saving_action)] = 1
+        else:
+            for (nx, ny), action in [((sx - 1, sy), "LEFT"), ((sx + 1, sy), "RIGHT"), ((sx, sy - 1), "UP"), ((sx, sy + 1), "DOWN")]:
+                if (nx, ny) in incoming_explosion:
+                    deadly_features[ACTIONS.index(action)] = 1
+    
+    for (nx, ny), action in [((sx - 1, sy), "LEFT"), ((sx + 1, sy), "RIGHT"), ((sx, sy - 1), "UP"), ((sx, sy + 1), "DOWN")]:
+        if game_state['explosion_map'][nx, ny] > 0:
+            deadly_features[ACTIONS.index(action)] = 1
+    
+    bomb_explosion_fields = get_bomb_explosion_fields(self_position, game_state['field'])
+    _, dist_savety = find_closest_position_action(game_state, lambda pos, state: pos not in bomb_explosion_fields)
+    bomb_survivable_feature[0] = 1 if dist_savety <= BOMB_TIMER and dist_savety != -1 else 0
+
+
+    return features
 
 
 def state_to_features_old(game_state: dict) -> np.array:
