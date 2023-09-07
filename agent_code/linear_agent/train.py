@@ -97,9 +97,10 @@ def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_
         #events.append(PLACEHOLDER_EVENT)
 
     # state_to_features is defined in callbacks.py
-    old_features = state_to_features(old_game_state)
-    new_features = state_to_features(new_game_state)
-    reward = reward_from_events(self, events)
+    sx, sy = new_game_state['self'][3]
+    old_features = state_to_features(old_game_state, self.visited_counters, (sx, sy))
+    new_features = state_to_features(new_game_state, self.visited_counters)
+    reward = reward_from_events(self, events, self.visited_counters[sx, sy])
     self.transitions.append(Transition(old_features, self_action, new_features, reward))
 
     q_vector = self.model.T @ new_features
@@ -124,8 +125,9 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
     global round_counter
     round_counter += 1
 
-    old_features = state_to_features(last_game_state)
-    reward = reward_from_events(self, events)
+    sx, sy = last_game_state['self'][3]
+    old_features = state_to_features(last_game_state, self.visited_counters)
+    reward = reward_from_events(self, events, self.visited_counters[sx, sy])
     self.logger.debug(f'Encountered event(s) {", ".join(map(repr, events))} in final step')
     self.transitions.append(Transition(old_features, last_action, None, reward))
 
@@ -133,7 +135,7 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
     with open(MODEL_FILE_NAME, "wb") as file:
         pickle.dump(self.model, file)
 
-def reward_from_events(self, events: List[str]) -> int:
+def reward_from_events(self, events: List[str], visited_counter) -> int:
     """
     *This is not a required function, but an idea to structure your code.*
 
@@ -156,5 +158,6 @@ def reward_from_events(self, events: List[str]) -> int:
     for event in events:
         if event in game_rewards:
             reward_sum += game_rewards[event]
+    reward_sum -= 1 if visited_counter >= 4 else 0
     self.logger.info(f"Awarded {reward_sum} for events {', '.join(events)}")
     return reward_sum

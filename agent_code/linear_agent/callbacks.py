@@ -30,7 +30,9 @@ def setup(self):
         self.logger.info("Loading model from saved state.")
         with open(MODEL_FILE_NAME, "rb") as file:
             self.model = pickle.load(file)
-        # print(self.model)
+        print(self.model)
+
+    self.visited_counters = np.zeros(shape=(COLS, ROWS))
 
 
 def act(self, game_state: dict) -> str:
@@ -48,19 +50,22 @@ def act(self, game_state: dict) -> str:
     if self.train and random.random() < random_prob:
         self.logger.debug("Choosing action purely at random.")
         # 80%: walk in any direction. 10% wait. 10% bomb.
-        return np.random.choice(ACTIONS, p=[.20, .20, .20, .20, .1, .1])
+        action = np.random.choice(ACTIONS, p=[.20, .20, .20, .20, .1, .1])
+    else:
+        self.logger.debug("Querying model for action.")
+        q_vector = self.model.T @ state_to_features(game_state, self.visited_counters)
+        action = ACTIONS[np.argmax(q_vector)]
 
-    self.logger.debug("Querying model for action.")
-    q_vector = self.model.T @ state_to_features(game_state)
-    action = ACTIONS[np.argmax(q_vector)]
-
-    """
     if not self.train:
         print(action)
-        print(state_to_features(game_state))
+        print(state_to_features(game_state, self.visited_counters))
         print(q_vector)
         print()
-    """
+
+    sx, sy = game_state['self'][3]
+    sx = 0 if action not in ["LEFT", "RIGHT"] else (1 if action == "RIGHT" else -1)
+    sy = 0 if action not in ["UP", "DOWN"] else (1 if action == "DOWN" else -1)
+    self.visited_counters[sx, sy] += 1
 
     return action
 
@@ -108,7 +113,7 @@ def find_closest_position(starting_position, game_state: dict, is_searched_posit
     return None, -1
 
 
-def state_to_features(game_state: dict) -> np.array:
+def state_to_features(game_state: dict, visited_counters: np.array, remove_visited = None) -> np.array:
     if game_state is None:
         return None
     
@@ -121,7 +126,8 @@ def state_to_features(game_state: dict) -> np.array:
     live_saving_features = features[LIVE_SAVING_FEATURES_START : LIVE_SAVING_FEATURES_START + LIVE_SAVING_FEATURES_LENGTH]
     deadly_features = features[DEADLY_FEATURES_START : DEADLY_FEATURES_START + DEADLY_FEATURES_LENGTH]
     bomb_survivable_feature = features[BOMB_SURVIVABLE_FEATURES_START : BOMB_SURVIVABLE_FEATURES_START + BOMB_SURVIVABLE_FEATURES_LENGTH]
-    
+    visited_features = features[VISITED_FEATURES_START : VISITED_FEATURES_START + VISITED_FEATURES_LENGTH]
+
     coin_action, _ = find_closest_position(self_position, game_state, lambda pos, state: pos in state['coins'])
     if coin_action is not None:
         coin_features[ACTIONS.index(coin_action)] = 1
@@ -156,7 +162,14 @@ def state_to_features(game_state: dict) -> np.array:
     _, dist_savety = find_closest_position(self_position, game_state, lambda pos, state: pos not in bomb_explosion_fields)
     bomb_survivable_feature[0] = 1 if dist_savety <= BOMB_TIMER and dist_savety != -1 else 0
 
-
+    if remove_visited is not None:
+        visited_features
+    for (nx, ny), action in [((sx - 1, sy), "LEFT"), ((sx + 1, sy), "RIGHT"), ((sx, sy - 1), "UP"), ((sx, sy + 1), "DOWN"), ((sx, sy), "WAIT")]:
+        visited_features[ACTIONS.index(action)] = visited_counters[nx, ny]
+        if (nx, ny) == remove_visited:
+            visited_features[ACTIONS.index(action)] -= 1
+    visited_features = np.minimum(np.maximum(visited_features - 3, 0), 1)
+    
     return features
 
 # Old state_to_features
