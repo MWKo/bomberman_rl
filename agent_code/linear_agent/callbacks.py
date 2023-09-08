@@ -51,16 +51,15 @@ def act(self, game_state: dict) -> str:
         return np.random.choice(ACTIONS, p=[.20, .20, .20, .20, .1, .1])
 
     self.logger.debug("Querying model for action.")
-    q_vector = self.model.T @ state_to_features(game_state)
+    #q_vector = self.model.T @ (state_to_features(game_state) + np.random.normal(scale=0.05, size=FEATURE_SIZE))
+    q_vector = self.model.T @ (state_to_features(game_state))
     action = ACTIONS[np.argmax(q_vector)]
 
-    """
     if not self.train:
         print(action)
         print(state_to_features(game_state))
-        print(q_vector)
+        print(dict(zip(ACTIONS, q_vector)))
         print()
-    """
 
     return action
 
