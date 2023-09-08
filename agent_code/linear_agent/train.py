@@ -30,6 +30,8 @@ waited_counter = 0
 MAX_TOLERATED_INVALID = 1
 invalid_counter = 0
 
+LEARNING_STEPSIZE = 1
+
 gamma = 0.98
 learning_rate = 0.01
 
@@ -39,6 +41,11 @@ def update_model(self, y, old_features, self_action):
     #print(learning_rate * (old_features * (y + np.dot(self.model[:, action_index], old_features))))
     self.model[:, action_index] += learning_rate * (old_features * (y - np.dot(self.model[:, action_index], old_features)))
 
+def reset_lists(self):
+    self.actions = []
+    self.rewards = []
+    self.q_values = []
+    self.features = []
 
 def setup_training(self):
     """
@@ -51,6 +58,7 @@ def setup_training(self):
     # Example: Setup an array that will note transition tuples
     # (s, a, r, s')
     self.transitions = deque(maxlen=TRANSITION_HISTORY_SIZE)
+    reset_lists(self)
 
 
 def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_state: dict, events: List[str]):
@@ -103,8 +111,16 @@ def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_
     self.transitions.append(Transition(old_features, self_action, new_features, reward))
 
     q_vector = self.model.T @ new_features
-    y = reward + gamma * np.max(q_vector)
-    update_model(self, y, old_features, self_action)
+    self.features.append(old_features)
+    self.actions.append(self_action)
+    self.rewards.append(reward)
+    self.q_values.append(np.max(q_vector))
+    
+    if len(self.rewards) >= LEARNING_STEPSIZE:
+        y = self.q_values[-1]
+        for j in range(-1, -LEARNING_STEPSIZE - 1, -1):
+            y = self.rewards[j] + gamma * y
+        update_model(self, y, old_features, self_action)
 
 
 def end_of_round(self, last_game_state: dict, last_action: str, events: List[str]):
@@ -129,7 +145,18 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
     self.logger.debug(f'Encountered event(s) {", ".join(map(repr, events))} in final step')
     self.transitions.append(Transition(old_features, last_action, None, reward))
 
-    update_model(self, reward, old_features, last_action)
+    self.features.append(old_features)
+    self.actions.append(last_action)
+    self.rewards.append(reward)
+
+    for i in range(len(self.rewards) - LEARNING_STEPSIZE, len(self.rewards)):
+        y = 0
+        for j in reversed(range(i, len(self.rewards))):
+            y = self.rewards[j] + gamma * y
+        update_model(self, y, self.features[i], self.actions[i])
+
+    reset_lists(self)
+
     with open(MODEL_FILE_NAME, "wb") as file:
         pickle.dump(self.model, file)
 
