@@ -32,6 +32,22 @@ def setup(self):
             self.model = pickle.load(file)
         # print(self.model)
 
+def is_valid_action(game_state: dict, action):
+    if action in ['WAIT', 'BOMB']:
+        return True
+    
+    sx, sy = game_state['self'][3]
+    nx, ny = {
+        'LEFT': (sx - 1, sy),
+        'RIGHT': (sx + 1, sy),
+        'UP': (sx, sy - 1),
+        'DOWN': (sx, sy + 1)
+    }[action]
+    return game_state['field'][nx, ny] == 0
+
+def get_valid_actions_mask(game_state: dict):
+    return np.array([is_valid_action(game_state, action) for action in ACTIONS], dtype=np.bool_)
+
 
 def act(self, game_state: dict) -> str:
     """
@@ -51,15 +67,22 @@ def act(self, game_state: dict) -> str:
         return np.random.choice(ACTIONS, p=[.20, .20, .20, .20, .1, .1])
 
     self.logger.debug("Querying model for action.")
-    #q_vector = self.model.T @ (state_to_features(game_state) + np.random.normal(scale=0.05, size=FEATURE_SIZE))
-    q_vector = self.model.T @ (state_to_features(game_state))
-    action = ACTIONS[np.argmax(q_vector)]
+    q_vector = self.model.T @ state_to_features(game_state)
+    #action = ACTIONS[np.argmax(q_vector)]
 
+    if self.train:
+        action = ACTIONS[np.argmax(q_vector)]
+    else:
+        valid_actions_mask = get_valid_actions_mask(game_state)
+        action = ACTIONS[np.arange(len(ACTIONS))[valid_actions_mask][np.argmax(q_vector[valid_actions_mask])]]
+
+    """
     if not self.train:
         print(action)
         print(state_to_features(game_state))
         print(dict(zip(ACTIONS, q_vector)))
         print()
+    """
 
     return action
 
