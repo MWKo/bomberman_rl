@@ -6,21 +6,8 @@ import numpy as np
 from .constants import *
 from settings import BOMB_TIMER, ROWS, COLS
 
+# Callback functions
 def setup(self):
-    """
-    Setup your code. This is called once when loading each agent.
-    Make sure that you prepare everything such that act(...) can be called.
-
-    When in training mode, the separate `setup_training` in train.py is called
-    after this method. This separation allows you to share your trained agent
-    with other students, without revealing your training code.
-
-    In this example, our model is a set of probabilities over actions
-    that are is independent of the game state.
-
-    :param self: This object is passed to all callbacks and you can set arbitrary values.
-    """
-
     if self.train or not os.path.isfile(MODEL_FILE_NAME):
     #if not os.path.isfile(MODEL_FILE_NAME):
         self.logger.info(MODEL_FILE_NAME)
@@ -31,6 +18,26 @@ def setup(self):
         with open(MODEL_FILE_NAME, "rb") as file:
             self.model = pickle.load(file)
         # print(self.model)
+
+def act(self, game_state: dict) -> str:
+    # todo Exploration vs exploitation
+    random_prob = .1
+
+    if self.train and random.random() < random_prob:
+        self.logger.debug("Choosing action purely at random.")
+        # 80%: walk in any direction. 10% wait. 10% bomb.
+        return np.random.choice(ACTIONS, p=[.20, .20, .20, .20, .1, .1])
+
+    self.logger.debug("Querying model for action.")
+    q_vector = self.model.T @ state_to_features(game_state)
+
+    action = get_choosen_action(q_vector, game_state, filter_invalid = not self.train)
+    #print_agent_choice(action, game_state, q_vector)
+    return action
+
+
+
+# helper functions
 
 def is_valid_action(game_state: dict, action):
     if action in ['WAIT', 'BOMB']:
@@ -45,46 +52,22 @@ def is_valid_action(game_state: dict, action):
     }[action]
     return game_state['field'][nx, ny] == 0
 
-def get_valid_actions_mask(game_state: dict):
-    return np.array([is_valid_action(game_state, action) for action in ACTIONS], dtype=np.bool_)
+
+def get_choosen_action(q_vector, game_state, filter_invalid: bool = False):
+    if not filter_invalid:
+        return ACTIONS[np.argmax(q_vector)]
+    
+    valid_actions_mask = np.array([is_valid_action(game_state, action) for action in ACTIONS], dtype=np.bool_)
+    argmax_valid_actions = np.argmax(q_vector[valid_actions_mask])
+    valid_indices = np.arange(len(ACTIONS))[valid_actions_mask]
+    return ACTIONS[valid_indices[argmax_valid_actions]]
 
 
-def act(self, game_state: dict) -> str:
-    """
-    Your agent should parse the input, think, and take a decision.
-    When not in training mode, the maximum execution time for this method is 0.5s.
-
-    :param self: The same object that is passed to all of your callbacks.
-    :param game_state: The dictionary that describes everything on the board.
-    :return: The action to take as a string.
-    """
-    # todo Exploration vs exploitation
-    random_prob = .1
-
-    if self.train and random.random() < random_prob:
-        self.logger.debug("Choosing action purely at random.")
-        # 80%: walk in any direction. 10% wait. 10% bomb.
-        return np.random.choice(ACTIONS, p=[.20, .20, .20, .20, .1, .1])
-
-    self.logger.debug("Querying model for action.")
-    q_vector = self.model.T @ state_to_features(game_state)
-    #action = ACTIONS[np.argmax(q_vector)]
-
-    if self.train:
-        action = ACTIONS[np.argmax(q_vector)]
-    else:
-        valid_actions_mask = get_valid_actions_mask(game_state)
-        action = ACTIONS[np.arange(len(ACTIONS))[valid_actions_mask][np.argmax(q_vector[valid_actions_mask])]]
-
-    """
-    if not self.train:
-        print(action)
-        print(state_to_features(game_state))
-        print(dict(zip(ACTIONS, q_vector)))
-        print()
-    """
-
-    return action
+def print_agent_choice(action, game_state, q_vector):
+    print(action)
+    print(state_to_features(game_state))
+    print(dict(zip(ACTIONS, q_vector)))
+    print()
 
 
 def is_next_to(position, is_searched_position):

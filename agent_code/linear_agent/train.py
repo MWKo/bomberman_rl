@@ -38,7 +38,6 @@ learning_rate = 0.01
 
 def update_model(self, y, old_features, self_action):
     action_index = ACTIONS.index(self_action)
-    #print(learning_rate * (old_features * (y + np.dot(self.model[:, action_index], old_features))))
     self.model[:, action_index] += learning_rate * (old_features * (y - np.dot(self.model[:, action_index], old_features)))
 
 def reset_lists(self):
@@ -48,61 +47,31 @@ def reset_lists(self):
     self.features = []
 
 def setup_training(self):
-    """
-    Initialise self for training purpose.
-
-    This is called after `setup` in callbacks.py.
-
-    :param self: This object is passed to all callbacks and you can set arbitrary values.
-    """
-    # Example: Setup an array that will note transition tuples
-    # (s, a, r, s')
     self.transitions = deque(maxlen=TRANSITION_HISTORY_SIZE)
     reset_lists(self)
+    self.waited_counter = 0
+    self.invalid_counter = 0
+    self.round_counter = 0
 
 
-def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_state: dict, events: List[str]):
-    """
-    Called once per step to allow intermediate rewards based on game events.
-
-    When this method is called, self.events will contain a list of all game
-    events relevant to your agent that occurred during the previous step. Consult
-    settings.py to see what events are tracked. You can hand out rewards to your
-    agent based on these events and your knowledge of the (new) game state.
-
-    This is *one* of the places where you could update your agent.
-
-    :param self: This object is passed to all callbacks and you can set arbitrary values.
-    :param old_game_state: The state that was passed to the last call of `act`.
-    :param self_action: The action that you took.
-    :param new_game_state: The state the agent is in now.
-    :param events: The events that occurred when going from  `old_game_state` to `new_game_state`
-    """
-    global waited_counter, invalid_counter
-
-    self.logger.debug(f'Encountered game event(s) {", ".join(map(repr, events))} in step {new_game_state["step"]}')
-    
+def add_custom_events(self, old_game_state: dict, action: str, events: List[str]):
     if e.WAITED in events and np.all(old_game_state['explosion_map'] == 0):
         events.append(UNNECESSARY_WAITING)
 
-    """
-    if e.WAITED in events:
-        waited_counter += 1
-        if waited_counter >= MAX_TOLERATED_WAITING:
-            events.append(LONG_WAITING)
-    else:
-        waited_counter = 0
-    """
-
     if e.INVALID_ACTION in events:
-        invalid_counter += 1
-        if invalid_counter >= MAX_TOLERATED_INVALID:
+        self.invalid_counter += 1
+        if self.invalid_counter >= MAX_TOLERATED_INVALID:
             events.append(LONG_INVALID)
     else:
-        invalid_counter = 0
-    # Idea: Add your own events to hand out rewards
-    #if ...:
-        #events.append(PLACEHOLDER_EVENT)
+        self.invalid_counter = 0
+    
+
+
+def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_state: dict, events: List[str]):
+    self.logger.debug(f'Encountered game event(s) {", ".join(map(repr, events))} in step {new_game_state["step"]}')
+    
+    add_custom_events(self, old_game_state, self_action, events)
+
 
     # state_to_features is defined in callbacks.py
     old_features = state_to_features(old_game_state)
@@ -124,22 +93,6 @@ def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_
 
 
 def end_of_round(self, last_game_state: dict, last_action: str, events: List[str]):
-    """
-    Called at the end of each game or when the agent died to hand out final rewards.
-    This replaces game_events_occurred in this round.
-
-    This is similar to game_events_occurred. self.events will contain all events that
-    occurred during your agent's final step.
-
-    This is *one* of the places where you could update your agent.
-    This is also a good place to store an agent that you updated.
-
-    :param self: The same object that is passed to all of your callbacks.
-    """
-
-    global round_counter
-    round_counter += 1
-
     old_features = state_to_features(last_game_state)
     reward = reward_from_events(self, events)
     self.logger.debug(f'Encountered event(s) {", ".join(map(repr, events))} in final step')
@@ -160,14 +113,9 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
     with open(MODEL_FILE_NAME, "wb") as file:
         pickle.dump(self.model, file)
 
-def reward_from_events(self, events: List[str]) -> int:
-    """
-    *This is not a required function, but an idea to structure your code.*
+    self.round_counter += 1
 
-    Here you can modify the rewards your agent get so as to en/discourage
-    certain behavior.
-    """
-    global round_counter
+def reward_from_events(self, events: List[str]) -> int:
     game_rewards = {
         e.COIN_COLLECTED: 1,
         e.KILLED_OPPONENT: 5,
@@ -175,7 +123,7 @@ def reward_from_events(self, events: List[str]) -> int:
         e.CRATE_DESTROYED: 0.3,
         e.KILLED_SELF: -3,
     }
-    if round_counter >= PUNISH_WAITING_INVALID_AFTER:
+    if self.round_counter >= PUNISH_WAITING_INVALID_AFTER:
         game_rewards[e.BOMB_DROPPED] = 0
         game_rewards[LONG_INVALID] = -1
         game_rewards[UNNECESSARY_WAITING] = -1
