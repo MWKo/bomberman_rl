@@ -121,11 +121,11 @@ def state_to_features(game_state: dict) -> np.array:
     sx, sy = self_position  
     
     features = np.zeros(FEATURE_SIZE)
-    coin_features = features[COIN_FEATURES_START : COIN_FEATURES_START + COIN_FEATURES_LENGTH]
-    crate_features = features[CRATE_FEATURES_START : CRATE_FEATURES_START + CRATE_FEATURES_LENGTH]
-    live_saving_features = features[LIVE_SAVING_FEATURES_START : LIVE_SAVING_FEATURES_START + LIVE_SAVING_FEATURES_LENGTH]
-    deadly_features = features[DEADLY_FEATURES_START : DEADLY_FEATURES_START + DEADLY_FEATURES_LENGTH]
-    bomb_survivable_feature = features[BOMB_SURVIVABLE_FEATURES_START : BOMB_SURVIVABLE_FEATURES_START + BOMB_SURVIVABLE_FEATURES_LENGTH]
+    coin_features = features[COIN_FEATURES_START : COIN_FEATURES_END]
+    crate_features = features[CRATE_FEATURES_START : CRATE_FEATURES_END]
+    live_saving_features = features[LIVE_SAVING_FEATURES_START : LIVE_SAVING_FEATURES_END]
+    deadly_features = features[DEADLY_FEATURES_START : DEADLY_FEATURES_END]
+    bomb_survivable_feature = features[BOMB_SURVIVABLE_FEATURES_START : BOMB_SURVIVABLE_FEATURES_END]
     
     coin_action, _ = find_closest_position(self_position, game_state, lambda pos, state: pos in state['coins'])
     if coin_action is not None:
