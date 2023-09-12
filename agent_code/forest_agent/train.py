@@ -34,6 +34,8 @@ invalid_counter = 0
 
 #LEARNING_STEPSIZE = 1
 
+LEARN_AFTER = 1000
+
 gamma = 0.98
 learning_rate = 0.01
 
@@ -61,6 +63,7 @@ def setup_training(self):
     self.transitions = deque(maxlen=TRANSITION_HISTORY_SIZE)
     reset_lists(self)
     self.trained_action = np.zeros(len(ACTIONS), dtype=np.bool_)
+    self.step_counter = 0
 
 
 def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_state: dict, events: List[str]):
@@ -108,15 +111,17 @@ def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_
 
     # state_to_features is defined in callbacks.py
     sx, sy = new_game_state['self'][3]
-    old_features = state_to_features(old_game_state, self.visited_counters, (sx, sy))
-    new_features = state_to_features(new_game_state, self.visited_counters)
-    reward = reward_from_events(self, events, self.visited_counters[sx, sy])
+    old_features = state_to_features(old_game_state)
+    new_features = state_to_features(new_game_state)
+    reward = reward_from_events(self, events)
     self.transitions.append(Transition(old_features, self_action, new_features, reward))
 
     q_vector = [forest.predict(new_features) for forest in self.model] if self.trained else np.zeros(FEATURE_SIZE)
     y = reward + gamma * np.max(q_vector)
     self.features[ACTIONS.index(self_action)].append(old_features)
     self.q_updates[ACTIONS.index(self_action)].append(y)
+
+    self.step_counter += 1
 
 
 def end_of_round(self, last_game_state: dict, last_action: str, events: List[str]):
@@ -137,8 +142,8 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
     round_counter += 1
 
     sx, sy = last_game_state['self'][3]
-    old_features = state_to_features(last_game_state, self.visited_counters)
-    reward = reward_from_events(self, events, self.visited_counters[sx, sy])
+    old_features = state_to_features(last_game_state)
+    reward = reward_from_events(self, events)
     self.logger.debug(f'Encountered event(s) {", ".join(map(repr, events))} in final step')
     self.transitions.append(Transition(old_features, last_action, None, reward))
 
@@ -148,10 +153,11 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
     self.q_updates[ACTIONS.index(last_action)].append(y)
 
     #print(np.array(self.q_updates))
-    for action in range(len(ACTIONS)):
-        if len(self.q_updates[action]) > 0:
-            self.model[action].train(np.array(self.features[action]), np.array(self.q_updates[action]))
-            self.trained_action[action] = True
+    if self.step_counter >= LEARN_AFTER:
+        for action in range(len(ACTIONS)):
+            if len(self.q_updates[action]) > 0:
+                self.model[action].train(np.array(self.features[action]), np.array(self.q_updates[action]))
+                self.trained_action[action] = True
     self.trained = True if np.all(self.trained_action) != 0 else False
     #print(self.trained)
     #print(self.trained_action)
@@ -159,7 +165,7 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
     with open(MODEL_FILE_NAME, "wb") as file:
         pickle.dump(self.model, file)
 
-def reward_from_events(self, events: List[str], visited_counter) -> int:
+def reward_from_events(self, events: List[str]) -> int:
     """
     *This is not a required function, but an idea to structure your code.*
 
@@ -182,6 +188,5 @@ def reward_from_events(self, events: List[str], visited_counter) -> int:
     for event in events:
         if event in game_rewards:
             reward_sum += game_rewards[event]
-    reward_sum -= 1 if visited_counter >= 4 else 0
     self.logger.info(f"Awarded {reward_sum} for events {', '.join(events)}")
     return reward_sum
