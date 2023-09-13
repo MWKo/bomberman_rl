@@ -121,22 +121,31 @@ def state_to_features(game_state: dict) -> np.array:
     sx, sy = self_position  
     
     features = np.zeros(FEATURE_SIZE)
-    coin_features = features[COIN_FEATURES_START : COIN_FEATURES_END]
-    crate_features = features[CRATE_FEATURES_START : CRATE_FEATURES_END]
+
+    coin_pos_features = features[COIN_POS_FEATURES_START : COIN_POS_FEATURES_END]
+    coin_dist_features = features[COIN_DIST_FEATURES_START : COIN_DIST_FEATURES_END]
+
+    crate_pos_features = features[CRATE_POS_FEATURES_START : CRATE_POS_FEATURES_END]
+    crate_dist_features = features[CRATE_DIST_FEATURES_START : CRATE_DIST_FEATURES_END]
+
     live_saving_features = features[LIVE_SAVING_FEATURES_START : LIVE_SAVING_FEATURES_END]
     deadly_features = features[DEADLY_FEATURES_START : DEADLY_FEATURES_END]
     bomb_survivable_feature = features[BOMB_SURVIVABLE_FEATURES_START : BOMB_SURVIVABLE_FEATURES_END]
     
-    coin_action, _ = find_closest_position(self_position, game_state, lambda pos, state: pos in state['coins'])
+    coin_action, dist = find_closest_position(self_position, game_state, lambda pos, state: pos in state['coins'])
     if coin_action is not None:
-        coin_features[ACTIONS.index(coin_action)] = 1
+        coin_pos_features[ACTIONS.index(coin_action)] = 1
+        coin_dist_features[ACTIONS.index(coin_action)] = 1 / dist
 
     crate_action, dist = find_closest_position(self_position, game_state, 
         lambda pos, state: is_next_to(pos, lambda p: state['field'][p[0], p[1]] == 1)
     )
     if crate_action is not None:
-        crate_features[ACTIONS.index(crate_action)] = 1
-        crate_features[-1] = 1 if dist == 0 else 0
+        if dist > 0:
+            crate_pos_features[ACTIONS.index(crate_action)] = 1
+            crate_dist_features[ACTIONS.index(crate_action)] = 1
+        else:
+            crate_dist_features[-1] = 1
 
     if len(game_state['bombs']) > 0:
         incoming_explosion = [
