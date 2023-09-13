@@ -121,6 +121,7 @@ def state_to_features(game_state: dict) -> np.array:
     sx, sy = self_position  
     
     features = np.zeros(FEATURE_SIZE)
+    features[0] = 1 # bias
 
     coin_pos_features = features[COIN_POS_FEATURES_START : COIN_POS_FEATURES_END]
     coin_dist_features = features[COIN_DIST_FEATURES_START : COIN_DIST_FEATURES_END]
