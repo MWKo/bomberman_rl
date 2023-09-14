@@ -10,7 +10,7 @@ from settings import BOMB_TIMER, ROWS, COLS
 def setup(self):
     self.config = { **DEFAULT_CONFIG, **self.config } if self.config is not None else DEFAULT_CONFIG
 
-    if self.train or not os.path.isfile(self.config['model_filename']):
+    if not os.path.isfile(self.config['model_filename']) or (self.train and self.config['override_model']):
         self.logger.info(self.config['model_filename'])
         weights = np.random.rand(FEATURE_SIZE, len(ACTIONS))
         self.model = weights / np.abs(weights).sum(axis=0)

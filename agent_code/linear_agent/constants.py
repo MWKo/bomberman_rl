@@ -52,6 +52,7 @@ UNNECESSARY_WAITING = "UNNECESSARY_WAITING"
 
 DEFAULT_CONFIG = {
     'model_filename': "linear_model.pt",
+    'override_model': True,
     'exploration': {
         'epsilon': 0.1,
         'action_probabilities': [.2, .2, .2, .2, .1, .1]
