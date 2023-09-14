@@ -8,25 +8,23 @@ from settings import BOMB_TIMER, ROWS, COLS
 
 # Callback functions
 def setup(self):
-    if self.train or not os.path.isfile(MODEL_FILE_NAME):
-    #if not os.path.isfile(MODEL_FILE_NAME):
-        self.logger.info(MODEL_FILE_NAME)
+    self.config = { **DEFAULT_CONFIG, **self.config } if self.config is not None else DEFAULT_CONFIG
+
+    if self.train or not os.path.isfile(self.config['model_filename']):
+        self.logger.info(self.config['model_filename'])
         weights = np.random.rand(FEATURE_SIZE, len(ACTIONS))
         self.model = weights / np.abs(weights).sum(axis=0)
     else:
         self.logger.info("Loading model from saved state.")
-        with open(MODEL_FILE_NAME, "rb") as file:
+        with open(self.config['model_filename'], "rb") as file:
             self.model = pickle.load(file)
         # print(self.model)
 
 def act(self, game_state: dict) -> str:
-    # todo Exploration vs exploitation
-    random_prob = .1
-
-    if self.train and random.random() < random_prob:
+    if self.train and random.random() < self.config['exploration']['epsilon']:
         self.logger.debug("Choosing action purely at random.")
         # 80%: walk in any direction. 10% wait. 10% bomb.
-        return np.random.choice(ACTIONS, p=[.20, .20, .20, .20, .1, .1])
+        return np.random.choice(ACTIONS, p=self.config['exploration']['action_probabilities'])
 
     self.logger.debug("Querying model for action.")
     q_vector = self.model.T @ state_to_features(game_state)

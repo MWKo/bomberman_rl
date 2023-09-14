@@ -1,4 +1,5 @@
 from settings import ROWS, COLS
+import events as e
 
 MODEL_FILE_NAME = "linear_model.pt"
 ACTIONS = ['UP', 'RIGHT', 'DOWN', 'LEFT', 'WAIT', 'BOMB']
@@ -44,3 +45,25 @@ BOMB_SURVIVABLE_FEATURES_START = DEADLY_FEATURES_END
 BOMB_SURVIVABLE_FEATURES_END = BOMB_SURVIVABLE_FEATURES_START + BOMB_SURVIVABLE_FEATURES_LENGTH
 
 FEATURE_SIZE = BOMB_SURVIVABLE_FEATURES_END
+
+# Events
+UNNECESSARY_WAITING = "UNNECESSARY_WAITING"
+
+
+DEFAULT_CONFIG = {
+    'model_filename': "linear_model.pt",
+    'exploration': {
+        'epsilon': 0.1,
+        'action_probabilities': [.2, .2, .2, .2, .1, .1]
+    },
+    'exploration_probability': 0.1,
+    'learning_rate': 0.01,
+    'gamma': 0.98,
+    'learning_stepsize': 1,
+    'rewards': {
+        e.COIN_COLLECTED: 1,
+        e.KILLED_OPPONENT: 5,
+        e.CRATE_DESTROYED: 0.3,
+        e.KILLED_SELF: -3,
+    }
+}
