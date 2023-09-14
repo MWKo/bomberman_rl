@@ -106,7 +106,10 @@ def main(argv = None):
     agent_group.add_argument("--agents", type=str, nargs="+", default=["rule_based_agent"] * s.MAX_AGENTS, help="Explicitly set the agent names in the game")
     play_parser.add_argument("--train", default=0, type=int, choices=[0, 1, 2, 3, 4],
                              help="First … agents should be set to training mode")
+    play_parser.add_argument("--learning-rates", type=float, nargs='*', default=[], help="Train models with learning rates...")
     play_parser.add_argument("--continue-without-training", default=False, action="store_true")
+    play_parser.add_argument("--model-filenames", type=str, nargs='*', default=[], help="Save / load models from files with filenames ...")
+    
     # play_parser.add_argument("--single-process", default=False, action="store_true")
 
     play_parser.add_argument("--scenario", default="classic", choices=s.SCENARIOS)
@@ -154,13 +157,15 @@ def main(argv = None):
     # Initialize environment and agents
     if args.command_name == "play":
         agents = []
+        model_filenames = args.model_filenames + [None] * (s.MAX_AGENTS - len(args.model_filenames))
+        learning_rates = args.learning_rates + [None] * (s.MAX_AGENTS - len(args.learning_rates))
         if args.train == 0 and not args.continue_without_training:
             args.continue_without_training = True
         if args.my_agent:
-            agents.append((args.my_agent, len(agents) < args.train))
+            agents.append((args.my_agent, len(agents) < args.train, model_filenames.pop(0), learning_rates.pop(0)))
             args.agents = ["rule_based_agent"] * (s.MAX_AGENTS - 1)
         for agent_name in args.agents:
-            agents.append((agent_name, len(agents) < args.train))
+            agents.append((agent_name, len(agents) < args.train, model_filenames.pop(0), learning_rates.pop(0)))
 
         world = BombeRLeWorld(args, agents)
         every_step = not args.skip_frames
