@@ -3,6 +3,7 @@ import logging
 import multiprocessing as mp
 import os
 import queue
+import json
 from collections import defaultdict
 from inspect import signature
 from io import BytesIO
@@ -196,7 +197,7 @@ class AgentRunner:
     Agent callback runner (called by backend).
     """
 
-    def __init__(self, train, agent_name, code_name, result_queue):
+    def __init__(self, config_fname, train, agent_name, code_name, result_queue):
         self.agent_name = agent_name
         self.code_name = code_name
         self.result_queue = result_queue
@@ -218,6 +219,14 @@ class AgentRunner:
 
         self.fake_self = SimpleNamespace()
         self.fake_self.train = train
+        
+        # Load config
+        self.fake_self.config = None
+        if config_fname is not None:
+            if not os.path.exists(config_fname):
+                raise ValueError(f"File '{config_fname}' does not exist")
+            with open(config_fname) as config_file:
+                self.fake_self.config = json.load(config_file)
 
         self.wlogger = logging.getLogger(self.agent_name + '_wrapper')
         self.wlogger.setLevel(s.LOG_AGENT_WRAPPER)
@@ -260,7 +269,8 @@ class AgentBackend:
     Base class connecting the agent to a callback implementation.
     """
 
-    def __init__(self, train, agent_name, code_name, result_queue):
+    def __init__(self, config_fname, train, agent_name, code_name, result_queue):
+        self.config_fname = config_fname
         self.train = train
         self.code_name = code_name
         self.agent_name = agent_name
@@ -293,12 +303,12 @@ class SequentialAgentBackend(AgentBackend):
     AgentConnector realised in main thread (easy debugging).
     """
 
-    def __init__(self, train, agent_name, code_name):
-        super().__init__(train, agent_name, code_name, queue.Queue())
+    def __init__(self, config_fname, train, agent_name, code_name):
+        super().__init__(config_fname, train, agent_name, code_name, queue.Queue())
         self.runner = None
 
     def start(self):
-        self.runner = AgentRunner(self.train, self.agent_name, self.code_name, self.result_queue)
+        self.runner = AgentRunner(self.config_fname, self.train, self.agent_name, self.code_name, self.result_queue)
 
     def send_event(self, event_name, *event_args):
         prev_cwd = os.getcwd()

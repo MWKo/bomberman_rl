@@ -107,6 +107,8 @@ def main(argv = None):
     play_parser.add_argument("--train", default=0, type=int, choices=[0, 1, 2, 3, 4],
                              help="First … agents should be set to training mode")
     play_parser.add_argument("--continue-without-training", default=False, action="store_true")
+    play_parser.add_argument("--agent-configs", type=str, nargs='*', default=[], help="Filepaths to agent configuration files")
+    
     # play_parser.add_argument("--single-process", default=False, action="store_true")
 
     play_parser.add_argument("--scenario", default="classic", choices=s.SCENARIOS)
@@ -154,13 +156,14 @@ def main(argv = None):
     # Initialize environment and agents
     if args.command_name == "play":
         agents = []
+        agent_configs = args.agent_configs + [None] * (s.MAX_AGENTS - len(args.agent_configs))
         if args.train == 0 and not args.continue_without_training:
             args.continue_without_training = True
         if args.my_agent:
-            agents.append((args.my_agent, len(agents) < args.train))
+            agents.append((args.my_agent, len(agents) < args.train, agent_configs.pop(0)))
             args.agents = ["rule_based_agent"] * (s.MAX_AGENTS - 1)
         for agent_name in args.agents:
-            agents.append((agent_name, len(agents) < args.train))
+            agents.append((agent_name, len(agents) < args.train, agent_configs.pop(0)))
 
         world = BombeRLeWorld(args, agents)
         every_step = not args.skip_frames
