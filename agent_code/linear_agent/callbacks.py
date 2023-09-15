@@ -9,6 +9,7 @@ from settings import BOMB_TIMER, ROWS, COLS
 # Callback functions
 def setup(self):
     self.config = { **DEFAULT_CONFIG, **self.config } if self.config is not None else DEFAULT_CONFIG
+    print(self.config)
 
     if not os.path.isfile(self.config['model_filename']) or (self.train and self.config['override_model']):
         self.logger.info(self.config['model_filename'])

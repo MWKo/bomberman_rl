@@ -1,7 +1,6 @@
 from settings import ROWS, COLS
 import events as e
 
-MODEL_FILE_NAME = "linear_model.pt"
 ACTIONS = ['UP', 'RIGHT', 'DOWN', 'LEFT', 'WAIT', 'BOMB']
 
 # OLD FEATURES

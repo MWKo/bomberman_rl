@@ -82,7 +82,7 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
 
     reset_lists(self)
 
-    with open(MODEL_FILE_NAME, "wb") as file:
+    with open(self.config['model_filename'], "wb") as file:
         pickle.dump(self.model, file)
 
     self.round_counter += 1
