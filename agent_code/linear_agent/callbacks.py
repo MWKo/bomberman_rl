@@ -81,12 +81,17 @@ def get_bomb_explosion_fields(position, arena):
     x, y = position
     explosion_fields = [position]
     for (dx, dy) in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-        if arena[x + dx, y + dy] == -1:
-            continue
-        explosion_fields.append((x + dx, y + dy))
-        explosion_fields.append((x + dx * 2, y + dy * 2))
-        explosion_fields.append((x + dx * 3, y + dy * 3))
+        for i in range(1, 4):
+            if arena[x + dx * i, y + dy * i] == -1:
+                break
+            explosion_fields.append((x + dx * i, y + dy * i))
     return explosion_fields
+
+def contains_crate(positions, arena):
+    for (x, y) in positions:
+        if arena[x, y] == 1:
+            return True
+    return False
 
 def find_closest_position(starting_position, game_state: dict, is_searched_position):
     arena = game_state['field']
@@ -135,6 +140,7 @@ def state_to_features(game_state: dict) -> np.array:
     live_saving_features = features[LIVE_SAVING_FEATURES_START : LIVE_SAVING_FEATURES_END]
     deadly_features = features[DEADLY_FEATURES_START : DEADLY_FEATURES_END]
     bomb_survivable_feature = features[BOMB_SURVIVABLE_FEATURES_START : BOMB_SURVIVABLE_FEATURES_END]
+    bomb_usefull_feature = features[BOMB_USEFULL_FEATURES_START : BOMB_USEFULL_FEATURES_END]
     
     coin_action, dist = find_closest_position(self_position, game_state, lambda pos, state: pos in state['coins'])
     if coin_action is not None:
@@ -173,7 +179,7 @@ def state_to_features(game_state: dict) -> np.array:
     bomb_explosion_fields = get_bomb_explosion_fields(self_position, game_state['field'])
     _, dist_savety = find_closest_position(self_position, game_state, lambda pos, state: pos not in bomb_explosion_fields)
     bomb_survivable_feature[0] = 1 if dist_savety <= BOMB_TIMER and dist_savety != -1 else 0
-
+    bomb_usefull_feature[0] = 1 if contains_crate(bomb_explosion_fields, game_state['field']) else 0
 
     return features
 

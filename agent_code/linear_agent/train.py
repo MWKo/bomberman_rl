@@ -6,7 +6,7 @@ import pickle
 from typing import List
 from .constants import *
 
-from .callbacks import state_to_features
+from .callbacks import state_to_features, get_bomb_explosion_fields, contains_crate
 
 # This is only an example!
 Transition = namedtuple('Transition',
@@ -36,8 +36,72 @@ def setup_training(self):
 
 
 def add_custom_events(self, old_game_state: dict, action: str, events: List[str]):
-    if e.WAITED in events and np.all(old_game_state['explosion_map'] == 0):
-        events.append(UNNECESSARY_WAITING)    
+    action_index = ACTIONS.index(action)
+    state_vector = state_to_features(old_game_state)
+
+    coin_pos_features = state_vector[COIN_POS_FEATURES_START : COIN_POS_FEATURES_END]
+    coin_dist_features = state_vector[COIN_DIST_FEATURES_START : COIN_DIST_FEATURES_END]
+
+    crate_pos_features = state_vector[CRATE_POS_FEATURES_START : CRATE_POS_FEATURES_END]
+    crate_dist_features = state_vector[CRATE_DIST_FEATURES_START : CRATE_DIST_FEATURES_END]
+
+    live_saving_features = state_vector[LIVE_SAVING_FEATURES_START : LIVE_SAVING_FEATURES_END]
+    deadly_features = state_vector[DEADLY_FEATURES_START : DEADLY_FEATURES_END]
+    bomb_survivable_feature = state_vector[BOMB_SURVIVABLE_FEATURES_START : BOMB_SURVIVABLE_FEATURES_END]
+    bomb_usefull_feature = state_vector[BOMB_USEFULL_FEATURES_START : BOMB_USEFULL_FEATURES_END]
+
+    def feature_action_picked(feature_vector):
+        return action_index < len(feature_vector) and feature_vector[action_index] != 0
+
+    if np.any(deadly_features): 
+        if feature_action_picked(deadly_features):
+            events.append(DEADLY_MOVE_CHOOSEN)
+            return
+        else:
+            events.append(DEADLY_MOVE_AVOIDED)
+    
+    if np.any(live_saving_features != 0):
+        if feature_action_picked(live_saving_features):
+            events.append(LIVE_SAVING_MOVE_CHOOSEN)
+        else:
+            events.append(LIVE_SAVING_MOVE_AVOIDED)
+        return
+    
+    if bomb_survivable_feature[0] == 0:
+        if action == 'BOMB':
+            events.append(UNSURVIVABLE_BOMB_CHOOSEN)
+            return
+        else:
+            events.append(SURVIVABLE_BOMB_CHOOSEN)
+    
+    if action == 'BOMB':
+        #explosion_fields = get_bomb_explosion_fields(old_game_state['self'][3], old_game_state['field'])
+        #if contains_crate(explosion_fields, old_game_state['field']):
+        #    events.append(USEFULL_BOMB)
+        #else:
+        #    events.append(USELESS_BOMB)
+        
+        if bomb_usefull_feature[0] != 0:
+            events.append(USEFULL_BOMB)
+        else:
+            events.append(USELESS_BOMB)
+    
+    if np.any(coin_pos_features != 0):
+        if feature_action_picked(coin_pos_features):
+            events.append(COIN_MOVE_CHOOSEN)
+        else:
+            events.append(COIN_MOVE_AVOIDED)
+        return
+    
+    if np.any(crate_pos_features != 0):
+        if feature_action_picked(crate_pos_features):
+            events.append(CRATE_MOVE_CHOOSEN)
+        else:
+            events.append(CRATE_MOVE_AVOIDED)
+        return
+
+    #if e.WAITED in events and np.all(old_game_state['explosion_map'] == 0):
+    #    events.append(UNNECESSARY_WAITING)    
 
 
 def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_state: dict, events: List[str]):

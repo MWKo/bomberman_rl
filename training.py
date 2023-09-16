@@ -20,12 +20,6 @@ DEFAULT_CONFIG = {
     'learning_rate': 0.01,
     'gamma': 0.98,
     'learning_stepsize': 1,
-    'rewards': {
-        e.COIN_COLLECTED: 1,
-        e.KILLED_OPPONENT: 5,
-        e.CRATE_DESTROYED: 0.3,
-        e.KILLED_SELF: -3,
-    }
 }
 
 def train(agents, config, scenario, rounds, save_stats = True, parallel_exec = True, filename_template = "model_{}"):
@@ -116,9 +110,9 @@ def main():
     Path(MODELS_DIR).mkdir(parents=True, exist_ok=True)
 
     config = DEFAULT_CONFIG
-    num_agents = 8
-    num_best = 3
-    num_rounds = 5
+    num_agents = 3
+    num_best = 1
+    num_rounds = 1
 
     print("Round 1")
     model_stats = train(
