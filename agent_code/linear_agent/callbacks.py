@@ -90,6 +90,11 @@ def get_bomb_explosion_fields(position, arena):
 
 def find_closest_position(starting_position, game_state: dict, is_searched_position):
     arena = game_state['field']
+    bombs = game_state['bombs']
+    others = game_state['others']
+    bomb_positions = list(map(lambda x: x[0], bombs))
+    other_positions = list(map(lambda x: x[3], others))
+    
     queue = [(starting_position, 'WAIT', 0)]
     visited = np.zeros(arena.shape, dtype=np.bool_)
     while len(queue) > 0:
@@ -104,7 +109,7 @@ def find_closest_position(starting_position, game_state: dict, is_searched_posit
         for (nx, ny), naction in [((x - 1, y), "LEFT"), ((x + 1, y), "RIGHT"), ((x, y - 1), "UP"), ((x, y + 1), "DOWN")]:
             if nx < 0 or nx >= COLS or ny < 0 or ny >= ROWS:
                 continue
-            if arena[nx, ny] != 0 or visited[nx, ny]:
+            if arena[nx, ny] != 0 or visited[nx, ny] or (nx, ny) in bomb_positions or (nx, ny) in other_positions:
                 continue
             queue.append(((nx, ny), naction if action == "WAIT" else action, dist + 1))
     
