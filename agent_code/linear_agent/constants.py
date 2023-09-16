@@ -72,7 +72,6 @@ DEFAULT_CONFIG = {
         'epsilon': 0.1,
         'action_probabilities': [.2, .2, .2, .2, .1, .1]
     },
-    'exploration_probability': 0.1,
     'learning_rate': 0.01,
     'gamma': 0.98,
     'learning_stepsize': 1,
