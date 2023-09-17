@@ -68,11 +68,7 @@ def add_custom_events(self, old_game_state: dict, action: str, events: List[str]
     state_vector = state_to_features(old_game_state)
 
     coin_pos_features = state_vector[COIN_POS_FEATURES_START : COIN_POS_FEATURES_END]
-    coin_dist_features = state_vector[COIN_DIST_FEATURES_START : COIN_DIST_FEATURES_END]
-
     crate_pos_features = state_vector[CRATE_POS_FEATURES_START : CRATE_POS_FEATURES_END]
-    crate_dist_features = state_vector[CRATE_DIST_FEATURES_START : CRATE_DIST_FEATURES_END]
-
     live_saving_features = state_vector[LIVE_SAVING_FEATURES_START : LIVE_SAVING_FEATURES_END]
     deadly_features = state_vector[DEADLY_FEATURES_START : DEADLY_FEATURES_END]
     bomb_survivable_feature = state_vector[BOMB_SURVIVABLE_FEATURES_START : BOMB_SURVIVABLE_FEATURES_END]
