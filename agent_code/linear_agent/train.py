@@ -29,8 +29,9 @@ def check_model_update(self):
 
     q_updates_np = np.array(self.q_updates)
     features_np = np.array(self.features)
+    actions_np = np.array(self.actions)
     for action_index, action in enumerate(ACTIONS):
-        action_mask = np.array([a == action for a in self.actions], dtype=np.bool_)
+        action_mask = actions_np == action
         if not np.any(action_mask):
             continue
         
