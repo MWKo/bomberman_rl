@@ -145,7 +145,7 @@ def state_to_features(game_state: dict) -> np.array:
     coin_action, dist = find_closest_position(self_position, game_state, lambda pos, state: pos in state['coins'])
     if coin_action is not None:
         coin_pos_features[ACTIONS.index(coin_action)] = 1
-        coin_dist_features[ACTIONS.index(coin_action)] = 1 / dist
+        coin_dist_features[ACTIONS.index(coin_action)] = 1 / (dist + 1)
 
     crate_action, dist = find_closest_position(self_position, game_state, 
         lambda pos, state: is_next_to(pos, lambda p: state['field'][p[0], p[1]] == 1)
