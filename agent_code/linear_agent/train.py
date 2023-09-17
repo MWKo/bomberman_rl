@@ -17,15 +17,32 @@ TRANSITION_HISTORY_SIZE = 3  # keep only ... last transitions
 RECORD_ENEMY_TRANSITIONS = 1.0  # record enemy transitions with probability ...
 
 
-def update_model(self, y, old_features, self_action):
-    action_index = ACTIONS.index(self_action)
-    self.model[:, action_index] += self.config['learning_rate'] * (old_features * (y - np.dot(self.model[:, action_index], old_features)))
-
 def reset_lists(self):
-    self.actions = []
-    self.rewards = []
-    self.q_values = []
+    self.q_updates = []
     self.features = []
+    self.actions = []
+
+
+def check_model_update(self):
+    if len(self.q_updates) < self.config['batch_size']:
+        return
+
+    q_updates_np = np.array(self.q_updates)
+    features_np = np.array(self.features)
+    for action_index, action in enumerate(ACTIONS):
+        action_mask = np.array([a == action for a in self.actions], dtype=np.bool_)
+        if not np.any(action_mask):
+            continue
+        
+        q_updates_masked = q_updates_np[action_mask]
+        features_masked = features_np[action_mask]
+        self.model.T[action_index] += self.config['learning_rate'] * \
+            (features_masked.T @ (q_updates_masked - features_masked @ self.model.T[action_index]))
+
+    reset_lists(self)
+    with open(self.config['model_filename'], "wb") as file:
+        pickle.dump(self.model, file)
+
 
 def setup_training(self):
     self.transitions = deque(maxlen=TRANSITION_HISTORY_SIZE)
@@ -116,16 +133,11 @@ def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_
     self.transitions.append(Transition(old_features, self_action, new_features, reward))
 
     q_vector = self.model.T @ new_features
+    self.q_updates.append(reward + self.config['gamma'] * np.max(q_vector))
     self.features.append(old_features)
     self.actions.append(self_action)
-    self.rewards.append(reward)
-    self.q_values.append(np.max(q_vector))
-    
-    if len(self.rewards) >= self.config['learning_stepsize']:
-        y = self.q_values[-1]
-        for j in range(-1, -self.config['learning_stepsize'] - 1, -1):
-            y = self.rewards[j] + self.config['gamma'] * y
-        update_model(self, y, old_features, self_action)
+
+    check_model_update(self)
 
 
 def end_of_round(self, last_game_state: dict, last_action: str, events: List[str]):
@@ -134,20 +146,11 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
     self.logger.debug(f'Encountered event(s) {", ".join(map(repr, events))} in final step')
     self.transitions.append(Transition(old_features, last_action, None, reward))
 
+    self.q_updates.append(reward)
     self.features.append(old_features)
     self.actions.append(last_action)
-    self.rewards.append(reward)
 
-    for i in range(len(self.rewards) - self.config['learning_stepsize'], len(self.rewards)):
-        y = 0
-        for j in reversed(range(i, len(self.rewards))):
-            y = self.rewards[j] + self.config['gamma'] * y
-        update_model(self, y, self.features[i], self.actions[i])
-
-    reset_lists(self)
-
-    with open(self.config['model_filename'], "wb") as file:
-        pickle.dump(self.model, file)
+    check_model_update(self)
 
     self.round_counter += 1
 

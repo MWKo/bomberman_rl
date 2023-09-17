@@ -74,7 +74,7 @@ DEFAULT_CONFIG = {
     },
     'learning_rate': 0.01,
     'gamma': 0.98,
-    'learning_stepsize': 1,
+    'batch_size': 5,
     'rewards': {
         e.COIN_COLLECTED: 1,
         e.KILLED_OPPONENT: 5,
