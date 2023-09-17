@@ -6,7 +6,7 @@ import pickle
 from typing import List
 from .constants import *
 
-from .callbacks import state_to_features, get_bomb_explosion_fields, contains_crate
+from .callbacks import state_to_features, get_bomb_explosion_fields
 
 # This is only an example!
 Transition = namedtuple('Transition',
@@ -35,7 +35,7 @@ def check_model_update(self):
     #print(self.errors)
     selection = np.random.choice(N_batch, size=self.config['n_training_per_batch'], replace=False, p=probabilities)
     q_updates_np = np.array(self.q_updates)[selection]
-    features_np = np.array(self.features)[selection]
+    Fnp = np.array(self.features)[selection]
     actions_np = np.array(self.actions)[selection]
     importance_weight = np.power(probabilities[selection], -self.config['per']['b'])
     for action_index, action in enumerate(ACTIONS):
@@ -44,11 +44,11 @@ def check_model_update(self):
             continue
         
         q_updates_masked = q_updates_np[action_mask]
-        features_masked = features_np[action_mask]
+        Fmasked = Fnp[action_mask]
         importance_weight_masked = importance_weight[action_mask]
         self.model.T[action_index] += self.config['learning_rate'] * \
-            ((importance_weight_masked * features_masked.T) @ \
-            (q_updates_masked - features_masked @ self.model.T[action_index]))
+            ((importance_weight_masked * Fmasked.T) @ \
+            (q_updates_masked - Fmasked @ self.model.T[action_index]))
 
     reset_lists(self)
     with open(self.config['model_filename'], "wb") as file:
@@ -67,12 +67,13 @@ def add_custom_events(self, old_game_state: dict, action: str, events: List[str]
     action_index = ACTIONS.index(action)
     state_vector = state_to_features(old_game_state)
 
-    coin_pos_features = state_vector[COIN_POS_FEATURES_START : COIN_POS_FEATURES_END]
-    crate_pos_features = state_vector[CRATE_POS_FEATURES_START : CRATE_POS_FEATURES_END]
-    live_saving_features = state_vector[LIVE_SAVING_FEATURES_START : LIVE_SAVING_FEATURES_END]
-    deadly_features = state_vector[DEADLY_FEATURES_START : DEADLY_FEATURES_END]
-    bomb_survivable_feature = state_vector[BOMB_SURVIVABLE_FEATURES_START : BOMB_SURVIVABLE_FEATURES_END]
-    bomb_usefull_feature = state_vector[BOMB_USEFULL_FEATURES_START : BOMB_USEFULL_FEATURES_END]
+    coin_pos_features = state_vector[COIN_POS_FSTART : COIN_POS_FEND]
+    crate_pos_features = state_vector[CRATE_POS_FSTART : CRATE_POS_FEND]
+    live_saving_features = state_vector[LIVE_SAVING_FSTART : LIVE_SAVING_FEND]
+    deadly_features = state_vector[DEADLY_FSTART : DEADLY_FEND]
+    bomb_survivable_feature = state_vector[BOMB_SURVIVABLE_FSTART : BOMB_SURVIVABLE_FEND]
+    bomb_crate_in_range_feature = state_vector[BOMB_CRATE_IN_RANGE_FSTART : BOMB_CRATE_IN_RANGE_FEND]
+    bomb_others_in_range_feature = state_vector[BOMB_OTHERS_IN_RANGE_FSTART : BOMB_OTHERS_IN_RANGE_FEND]
 
     def feature_action_picked(feature_vector):
         return action_index < len(feature_vector) and feature_vector[action_index] != 0
@@ -105,7 +106,7 @@ def add_custom_events(self, old_game_state: dict, action: str, events: List[str]
         #else:
         #    events.append(USELESS_BOMB)
         
-        if bomb_usefull_feature[0] != 0:
+        if bomb_crate_in_range_feature[0] != 0 or bomb_others_in_range_feature[0] != 0:
             events.append(USEFULL_BOMB)
         else:
             events.append(USELESS_BOMB)

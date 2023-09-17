@@ -87,9 +87,9 @@ def get_bomb_explosion_fields(position, arena):
             explosion_fields.append((x + dx * i, y + dy * i))
     return explosion_fields
 
-def contains_crate(positions, arena):
-    for (x, y) in positions:
-        if arena[x, y] == 1:
+def contains_condition(positions, game_state: dict, is_searched_position):
+    for pos in positions:
+        if is_searched_position(pos, game_state):
             return True
     return False
 
@@ -131,12 +131,14 @@ def state_to_features(game_state: dict) -> np.array:
     features = np.zeros(FEATURE_SIZE)
     features[0] = 1 # bias
 
-    coin_pos_features = features[COIN_POS_FEATURES_START : COIN_POS_FEATURES_END]
-    crate_pos_features = features[CRATE_POS_FEATURES_START : CRATE_POS_FEATURES_END]
-    live_saving_features = features[LIVE_SAVING_FEATURES_START : LIVE_SAVING_FEATURES_END]
-    deadly_features = features[DEADLY_FEATURES_START : DEADLY_FEATURES_END]
-    bomb_survivable_feature = features[BOMB_SURVIVABLE_FEATURES_START : BOMB_SURVIVABLE_FEATURES_END]
-    bomb_usefull_feature = features[BOMB_USEFULL_FEATURES_START : BOMB_USEFULL_FEATURES_END]
+    coin_pos_features = features[COIN_POS_FSTART : COIN_POS_FEND]
+    crate_pos_features = features[CRATE_POS_FSTART : CRATE_POS_FEND]
+    other_pos_features = features[OTHER_POS_FSTART : OTHER_POS_FEND]
+    live_saving_features = features[LIVE_SAVING_FSTART : LIVE_SAVING_FEND]
+    deadly_features = features[DEADLY_FSTART : DEADLY_FEND]
+    bomb_survivable_feature = features[BOMB_SURVIVABLE_FSTART : BOMB_SURVIVABLE_FEND]
+    bomb_crate_in_range_feature = features[BOMB_CRATE_IN_RANGE_FSTART : BOMB_CRATE_IN_RANGE_FEND]
+    bomb_others_in_range_feature = features[BOMB_OTHERS_IN_RANGE_FSTART : BOMB_OTHERS_IN_RANGE_FEND]
     
     coin_action, dist = find_closest_position(self_position, game_state, lambda pos, state: pos in state['coins'])
     if coin_action is not None:
@@ -148,6 +150,10 @@ def state_to_features(game_state: dict) -> np.array:
     if crate_action is not None:
         if dist > 0:
             crate_pos_features[ACTIONS.index(crate_action)] = 1
+    
+    crate_action, dist = find_closest_position(self_position, game_state, 
+        lambda pos, state: is_next_to(pos, lambda p: p in [other[3] for other in state['others']])
+    )
 
     if len(game_state['bombs']) > 0:
         incoming_explosion = [
@@ -171,13 +177,24 @@ def state_to_features(game_state: dict) -> np.array:
     bomb_explosion_fields = get_bomb_explosion_fields(self_position, game_state['field'])
     _, dist_savety = find_closest_position(self_position, game_state, lambda pos, state: pos not in bomb_explosion_fields)
     bomb_survivable_feature[0] = 1 if dist_savety <= BOMB_TIMER and dist_savety != -1 else 0
-    bomb_usefull_feature[0] = 1 if contains_crate(bomb_explosion_fields, game_state['field']) else 0
+    
+    bomb_crate_in_range_feature[0] = \
+        1 if contains_condition(
+            bomb_explosion_fields, game_state, 
+            lambda pos, state: state['field'][pos[0], pos[1]] == 1
+        ) else 0
+    
+    bomb_others_in_range_feature[0] = \
+        1 if contains_condition(
+            bomb_explosion_fields, game_state, 
+            lambda pos, state: pos in [other[3] for other in state['others']]
+        ) else 0
 
     return features
 
 # Old state_to_features
 # 
-# def state_to_features_old(game_state: dict) -> np.array:
+# def state_to_Fold(game_state: dict) -> np.array:
 #     """
 #     *This is not a required function, but an idea to structure your code.*
 # 
