@@ -74,7 +74,14 @@ DEFAULT_CONFIG = {
     },
     'learning_rate': 0.01,
     'gamma': 0.98,
-    'batch_size': 5,
+    'batch_size': 50,
+    'n_training_per_batch': 25,
+    'per': {
+        'error_clip': 1,
+        'error_offset': 0.001,
+        'priority_scale': 0.6,
+        'b': 0.4
+    },
     'rewards': {
         e.COIN_COLLECTED: 1,
         e.KILLED_OPPONENT: 5,
