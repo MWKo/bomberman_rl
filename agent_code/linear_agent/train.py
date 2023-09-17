@@ -29,7 +29,7 @@ def check_model_update(self):
         return
 
     N_batch = len(self.q_updates)
-    probabilities = np.clip(np.array(self.errors), 0, self.config['error_clip']) + self.config['per']['error_offset']
+    probabilities = np.clip(np.array(self.errors), 0, self.config['per']['error_clip']) + self.config['per']['error_offset']
     probabilities = np.power(probabilities, self.config['per']['priority_scale'])
     probabilities /= probabilities.sum()
     #print(self.errors)
