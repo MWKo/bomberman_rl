@@ -9,6 +9,8 @@ import events as e
 from pathlib import Path
 from functools import cmp_to_key
 
+from settings import MAX_AGENTS
+
 MODELS_DIR = './models'
 
 DEFAULT_CONFIG = {
@@ -22,7 +24,48 @@ DEFAULT_CONFIG = {
     'learning_stepsize': 1,
 }
 
-def train(agents, config, scenario, rounds, save_stats = True, parallel_exec = True, filename_template = "model_{}"):
+class OwnAgent:
+    def __init__(self, agent_name, config, filename):
+        self.agent_name = agent_name
+        self.config = config
+        self.filename = filename
+
+def play(scenario, rounds, own_agents, train, fill_agent = None, save_stats = True, parallel_exec = True):
+    agents_str = "--agents"
+    configs_str = "--agent-configs"
+    for own_agent in own_agents:
+        config = { 
+            **own_agent.config,
+            'model_filename': str(Path(MODELS_DIR, own_agent.filename + ".pt").resolve())
+        }
+        config_path = Path(MODELS_DIR, own_agent.filename + "_config.json")
+        with config_path.open('w') as config_file:
+            json.dump(config, config_file)
+        agents_str += f" {own_agent.agent_name}"
+        configs_str += f" \"{config_path.resolve()}\""
+    
+    if fill_agent is not None:
+        agents_str += f" {fill_agent}" * (MAX_AGENTS - len(own_agents))
+
+    train_str = f"--train {len(own_agents)}" if train else ""
+    stats_str = ""
+    if save_stats is not False:
+        stats_str += "--save-stats"
+        if save_stats is not True:
+            stats_str += f" \"{Path(MODELS_DIR, save_stats).resolve()}\""
+
+    process = subprocess.Popen(
+        f"python main.py play --no-gui {agents_str} {train_str} --scenario {scenario} " +
+        f"--n-rounds {rounds} {configs_str} {stats_str}"
+    )
+
+    if parallel_exec:
+        return process
+    
+    process.wait()
+
+
+def play_multiple(agents, config, scenario, rounds, save_stats = True, parallel_exec = True, filename_template = "model_{}"):
     training_processes = []
 
     model_filenames = [filename_template.format(i) for i in range(len(agents))]
@@ -56,6 +99,34 @@ def train(agents, config, scenario, rounds, save_stats = True, parallel_exec = T
             stats = json.load(stats_file)
         agent_stats.append(stats['by_agent'][agent])
     return zip(model_paths, agent_stats)
+
+
+def load_stats(own_agents_list, stats_filenames):
+    model_stats = []
+
+    for own_agents, stats_filename in zip(own_agents_list, stats_filenames):
+        stats_path = Path(MODELS_DIR, stats_filename)
+        with stats_path.open('r') as stats_file:
+            stats = json.load(stats_file)
+        stats_by_agent = stats['by_agent']
+
+        for i, own_agent in enumerate(own_agents):
+            model_path = Path(MODELS_DIR, own_agent.filename)
+            key = own_agent.agent_name
+            if key not in stats_by_agent:
+                for i in range(MAX_AGENTS):
+                    numbered_key = f"{key}_{i}"
+                    if numbered_key in stats_by_agent:
+                        key = numbered_key
+                        break
+
+                if key not in stats_by_agent:
+                    raise ValueError(f"{own_agent.agent_name} not in stats['by_agent']")
+
+            model_stats.append((model_path, stats_by_agent[key]))
+            del stats_by_agent[key]
+
+    return model_stats
 
     
 def model_stats_comparator(model_stats_0, model_stats_1):
@@ -115,6 +186,38 @@ def main():
     num_rounds = 1
 
     print("Round 1")
+    Path(MODELS_DIR, "0").mkdir(parents=True, exist_ok=True)
+    own_agents_list = [
+        [OwnAgent(agent_name="linear_agent", config=DEFAULT_CONFIG, filename=f"0/model{i}"),
+        OwnAgent(agent_name="linear_agent", config=DEFAULT_CONFIG, filename=f"0/model{i}X")]
+        for i in range(2)
+    ]
+    for own_agents in own_agents_list:
+        play(
+            scenario="loot-crate",
+            rounds=10, 
+            own_agents=own_agents,
+            train=True,
+            fill_agent=None,
+            save_stats=False,
+            parallel_exec=False
+        )
+    
+    stats_filenames = [f"0/stats{i}.json" for i in range(len(own_agents_list))]
+    for own_agents, stats_filename in zip(own_agents_list, stats_filenames):
+        play(
+            scenario="loot-crate",
+            rounds=10, 
+            own_agents=own_agents,
+            train=False,
+            fill_agent=None,
+            save_stats=stats_filename,
+            parallel_exec=False
+        )
+    
+    stats = load_stats(own_agents_list, stats_filenames)
+
+    """
     model_stats = train(
         agents=["linear_agent"] * num_agents,
         config=DEFAULT_CONFIG, 
@@ -140,6 +243,7 @@ def main():
         )
         models = get_ranked_models(model_stats)
         copy_best(models[0])
+    """
 
 if __name__ == '__main__':
     main()
