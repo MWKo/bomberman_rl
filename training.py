@@ -14,14 +14,6 @@ from settings import MAX_AGENTS
 MODELS_DIR = './models'
 
 DEFAULT_CONFIG = {
-    'override_model': True,
-    'exploration': {
-        'epsilon': 0.1,
-        'action_probabilities': [.2, .2, .2, .2, .1, .1]
-    },
-    'learning_rate': 0.01,
-    'gamma': 0.98,
-    'learning_stepsize': 1,
 }
 
 class OwnAgent:
@@ -207,77 +199,47 @@ def init_next_round(ranked_models, new_subdir, num_best: int, repopulate_to: int
         dst = Path(dst_dir, f"{filename_template.format(i)}.pt")
         shutil.copy(src, dst)
 
-def main():
-    Path(MODELS_DIR).mkdir(parents=True, exist_ok=True)
-
-    config = DEFAULT_CONFIG
-    num_agents = 3
-    num_best = 1
-    num_rounds = 1
-
+def round1(subdir = '0'):
     print("Round 1")
     own_agents_list = [
-        [OwnAgent(agent_name="linear_agent", config=DEFAULT_CONFIG, filename=f"0/model{i}"),]
-        for i in range(8)
+        [OwnAgent(agent_name="linear_agent", config=DEFAULT_CONFIG, filename=f"{subdir}/model{i}"),]
+        for i in range(5)
     ]
     print("Training")
-    train_models(own_agents_list, subdir='0', rounds=5, scenario="loot-crate", fill_agent=None, 
-                 parallel_exec=False)
+    train_models(own_agents_list, subdir=subdir, rounds=500, scenario="loot-crate", fill_agent=None, 
+                 parallel_exec=True)
     print("Testing")
-    stats = test_models(own_agents_list, subdir='0', rounds=1, scenario="loot-crate", fill_agent=None, 
-                        parallel_exec=False)
+    stats = test_models(own_agents_list, subdir=subdir, rounds=100, scenario="loot-crate", fill_agent=None, 
+                        parallel_exec=True)
     ranked_models = get_ranked_models(stats)
+    return ranked_models
 
-
-
+def round2(ranked_models, subdir = '1'):
     print("\n\nRound 2")
-    init_next_round(ranked_models, new_subdir='1', num_best=1, repopulate_to=8, filename_template="model{}")
+    init_next_round(ranked_models, new_subdir=subdir, num_best=1, repopulate_to=5, filename_template="model{}")
     own_agents_list = [
         [OwnAgent(agent_name="linear_agent", config={ 
             **DEFAULT_CONFIG, 
-            'model_filename': str(Path(MODELS_DIR, f"1/model{i}.pt").resolve()), 
+            'model_filename': str(Path(MODELS_DIR, f"{subdir}/model{i}.pt").resolve()), 
             'override_model': False},
-            filename=f"0/model{i}")]
-        for i in range(8)
+            filename=f"{subdir}/model{i}")]
+        for i in range(5)
     ]
     print("Training")
-    train_models(own_agents_list, subdir='1', rounds=2, scenario="classic", 
-                 fill_agent="rule_based_agent", parallel_exec=False)
+    train_models(own_agents_list, subdir=subdir, rounds=200, scenario="classic", 
+                 fill_agent="rule_based_agent", parallel_exec=True)
     print("Testing")
-    stats = test_models(own_agents_list, subdir='1', rounds=1, scenario="classic", 
-                        fill_agent="rule_based_agent", parallel_exec=False)
+    stats = test_models(own_agents_list, subdir=subdir, rounds=100, scenario="classic", 
+                        fill_agent="rule_based_agent", parallel_exec=True)
     ranked_models = get_ranked_models(stats)
+    return ranked_models
+
+def main():
+    Path(MODELS_DIR).mkdir(parents=True, exist_ok=True)
+
+    ranked_models = round1()
+    ranked_models = round2(ranked_models)
     shutil.copy(ranked_models[0], Path(MODELS_DIR, f"best_model.pt"))
-
-
-
-    """
-    model_stats = train(
-        agents=["linear_agent"] * num_agents,
-        config=DEFAULT_CONFIG, 
-        scenario="loot-crate",
-        rounds=500
-    )
-    models = get_ranked_models(model_stats)
-    copy_best(models[0])
-
-    for i in range(1, num_rounds):
-        print(f"Round {i + 1}")
-        select_repopulate(models=models, num_best=num_best, repopulate_to=num_agents)
-        config = { 
-            **config, 
-            'override_model': False,
-            'learning_rate': config['learning_rate'] / 2
-        }
-        model_stats = train(
-            agents=["linear_agent"] * num_agents,
-            config=DEFAULT_CONFIG, 
-            scenario="loot-crate",
-            rounds=500
-        )
-        models = get_ranked_models(model_stats)
-        copy_best(models[0])
-    """
 
 if __name__ == '__main__':
     main()
