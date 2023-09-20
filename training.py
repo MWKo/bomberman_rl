@@ -111,7 +111,7 @@ def load_stats(own_agents_list, stats_filenames):
         stats_by_agent = stats['by_agent']
 
         for i, own_agent in enumerate(own_agents):
-            model_path = Path(MODELS_DIR, own_agent.filename)
+            model_path = Path(MODELS_DIR, own_agent.filename + ".pt")
             key = own_agent.agent_name
             if key not in stats_by_agent:
                 for i in range(MAX_AGENTS):
@@ -132,19 +132,19 @@ def load_stats(own_agents_list, stats_filenames):
 def model_stats_comparator(model_stats_0, model_stats_1):
     stats_0, stats_1 = model_stats_0[1], model_stats_1[1]
 
-    if stats_0['score'] < stats_1['score']:
+    if stats_0.get('score', 0) < stats_1.get('score', 0):
         return -1
-    if stats_0['score'] > stats_1['score']:
+    if stats_0.get('score', 0) > stats_1.get('score', 0):
         return +1
     
-    if stats_0['suicides'] < stats_1['suicides']:
+    if stats_0.get('suicides', 0) < stats_1.get('suicides', 0):
         return +1
-    if stats_0['suicides'] > stats_1['suicides']:
+    if stats_0.get('suicides', 0) > stats_1.get('suicides', 0):
         return -1
     
-    if stats_0['invalid'] < stats_1['invalid']:
+    if stats_0.get('invalid', 0) < stats_1.get('invalid', 0):
         return +1
-    if stats_0['invalid'] > stats_1['invalid']:
+    if stats_0.get('invalid', 0) > stats_1.get('invalid', 0):
         return -1
     
     return 0
@@ -159,23 +159,53 @@ def copy_best(model, filename_template = "model_{}"):
     shutil.copy(model, Path(MODELS_DIR, filename_template.format("best") + ".pt"))
 
 
-def select_repopulate(models, num_best: int, repopulate_to: int, filename_template = "model_{}"):
-    for model in models[num_best:]:
-        model.unlink()
-    
-    models = models[:num_best]
-    temp_modelpaths = [Path(MODELS_DIR, filename_template.format(i) + ".tmp") for i in range(len(models))]
-    new_modelpaths = [Path(MODELS_DIR, filename_template.format(i) + ".pt") for i in range(len(models))]
-    for model, temp_modelpath in zip(models, temp_modelpaths):
-        model.rename(temp_modelpath)
-    for temp_modelpath, new_modelpath in zip(temp_modelpaths, new_modelpaths):
-        temp_modelpath.rename(new_modelpath)
-    
-    for i in range(num_best, repopulate_to):
-        src = new_modelpaths[i % num_best]
-        dst = Path(MODELS_DIR, filename_template.format(i) + ".pt")
-        shutil.copy(src, dst)
+def train_models(own_agents_list, subdir, rounds, scenario, fill_agent = None, parallel_exec = False):
+    Path(MODELS_DIR, subdir).mkdir(parents=True, exist_ok=True)
+    processes = []
+    for own_agents in own_agents_list:
+        processes.append(play(
+            scenario=scenario,
+            rounds=rounds, 
+            own_agents=own_agents,
+            train=True,
+            fill_agent=fill_agent,
+            save_stats=False,
+            parallel_exec=parallel_exec
+        ))
 
+    if parallel_exec:
+        for process in processes:
+            process.wait()
+
+def test_models(own_agents_list, subdir, rounds, scenario, fill_agent = None, parallel_exec = False):
+    stats_filenames = [f"{subdir}/stats{i}.json" for i in range(len(own_agents_list))]
+    processes = []
+    for own_agents, stats_filename in zip(own_agents_list, stats_filenames):
+        processes.append(play(
+            scenario=scenario,
+            rounds=rounds, 
+            own_agents=own_agents,
+            train=False,
+            fill_agent=fill_agent,
+            save_stats=stats_filename,
+            parallel_exec=parallel_exec
+        ))
+
+    if parallel_exec:
+        for process in processes:
+            process.wait()
+    
+    stats = load_stats(own_agents_list, stats_filenames)
+    return stats
+
+
+def init_next_round(ranked_models, new_subdir, num_best: int, repopulate_to: int, filename_template = "model{}"):      
+    dst_dir = Path(MODELS_DIR, new_subdir)
+    dst_dir.mkdir(parents=True, exist_ok=True)
+    for i in range(repopulate_to):
+        src = ranked_models[i % num_best]
+        dst = Path(dst_dir, f"{filename_template.format(i)}.pt")
+        shutil.copy(src, dst)
 
 def main():
     Path(MODELS_DIR).mkdir(parents=True, exist_ok=True)
@@ -186,36 +216,40 @@ def main():
     num_rounds = 1
 
     print("Round 1")
-    Path(MODELS_DIR, "0").mkdir(parents=True, exist_ok=True)
     own_agents_list = [
-        [OwnAgent(agent_name="linear_agent", config=DEFAULT_CONFIG, filename=f"0/model{i}"),
-        OwnAgent(agent_name="linear_agent", config=DEFAULT_CONFIG, filename=f"0/model{i}X")]
-        for i in range(2)
+        [OwnAgent(agent_name="linear_agent", config=DEFAULT_CONFIG, filename=f"0/model{i}"),]
+        for i in range(8)
     ]
-    for own_agents in own_agents_list:
-        play(
-            scenario="loot-crate",
-            rounds=10, 
-            own_agents=own_agents,
-            train=True,
-            fill_agent=None,
-            save_stats=False,
-            parallel_exec=False
-        )
-    
-    stats_filenames = [f"0/stats{i}.json" for i in range(len(own_agents_list))]
-    for own_agents, stats_filename in zip(own_agents_list, stats_filenames):
-        play(
-            scenario="loot-crate",
-            rounds=10, 
-            own_agents=own_agents,
-            train=False,
-            fill_agent=None,
-            save_stats=stats_filename,
-            parallel_exec=False
-        )
-    
-    stats = load_stats(own_agents_list, stats_filenames)
+    print("Training")
+    train_models(own_agents_list, subdir='0', rounds=5, scenario="loot-crate", fill_agent=None, 
+                 parallel_exec=False)
+    print("Testing")
+    stats = test_models(own_agents_list, subdir='0', rounds=1, scenario="loot-crate", fill_agent=None, 
+                        parallel_exec=False)
+    ranked_models = get_ranked_models(stats)
+
+
+
+    print("\n\nRound 2")
+    init_next_round(ranked_models, new_subdir='1', num_best=1, repopulate_to=8, filename_template="model{}")
+    own_agents_list = [
+        [OwnAgent(agent_name="linear_agent", config={ 
+            **DEFAULT_CONFIG, 
+            'model_filename': str(Path(MODELS_DIR, f"1/model{i}.pt").resolve()), 
+            'override_model': False},
+            filename=f"0/model{i}")]
+        for i in range(8)
+    ]
+    print("Training")
+    train_models(own_agents_list, subdir='1', rounds=2, scenario="classic", 
+                 fill_agent="rule_based_agent", parallel_exec=False)
+    print("Testing")
+    stats = test_models(own_agents_list, subdir='1', rounds=1, scenario="classic", 
+                        fill_agent="rule_based_agent", parallel_exec=False)
+    ranked_models = get_ranked_models(stats)
+    shutil.copy(ranked_models[0], Path(MODELS_DIR, f"best_model.pt"))
+
+
 
     """
     model_stats = train(
