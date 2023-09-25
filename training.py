@@ -11,16 +11,17 @@ from functools import cmp_to_key
 
 from settings import MAX_AGENTS
 
-MODELS_DIR = './models'
+MODELS_PARENT_DIR = './models'
+MODELS_DIR = MODELS_PARENT_DIR + '/models'
 
 DEFAULT_CONFIG = {
 }
 
 class OwnAgent:
-    def __init__(self, agent_name, config, filename):
+    def __init__(self, agent_name, config, filepath):
         self.agent_name = agent_name
         self.config = config
-        self.filename = filename
+        self.filepath = filepath
 
 def play(scenario, rounds, own_agents, train, fill_agent = None, save_stats = True, parallel_exec = True):
     agents_str = "--agents"
@@ -28,9 +29,10 @@ def play(scenario, rounds, own_agents, train, fill_agent = None, save_stats = Tr
     for own_agent in own_agents:
         config = { 
             **own_agent.config,
-            'model_filename': str(Path(MODELS_DIR, own_agent.filename + ".pt").resolve())
+            'model_filename': own_agent.filepath
         }
-        config_path = Path(MODELS_DIR, own_agent.filename + "_config.json")
+        filepath_no_ext = os.path.splitext(own_agent.filepath)[0]
+        config_path = Path(filepath_no_ext + "_config.json")
         with config_path.open('w') as config_file:
             json.dump(config, config_file)
         agents_str += f" {own_agent.agent_name}"
@@ -44,7 +46,7 @@ def play(scenario, rounds, own_agents, train, fill_agent = None, save_stats = Tr
     if save_stats is not False:
         stats_str += "--save-stats"
         if save_stats is not True:
-            stats_str += f" \"{Path(MODELS_DIR, save_stats).resolve()}\""
+            stats_str += f" \"{save_stats}\""
 
     process = subprocess.Popen(
         f"python main.py play --no-gui {agents_str} {train_str} --scenario {scenario} " +
@@ -103,7 +105,7 @@ def load_stats(own_agents_list, stats_filenames):
         stats_by_agent = stats['by_agent']
 
         for i, own_agent in enumerate(own_agents):
-            model_path = Path(MODELS_DIR, own_agent.filename + ".pt")
+            model_path = Path(own_agent.filepath)
             key = own_agent.agent_name
             if key not in stats_by_agent:
                 for i in range(MAX_AGENTS):
@@ -170,7 +172,8 @@ def train_models(own_agents_list, subdir, rounds, scenario, fill_agent = None, p
             process.wait()
 
 def test_models(own_agents_list, subdir, rounds, scenario, fill_agent = None, parallel_exec = False):
-    stats_filenames = [f"{subdir}/stats{i}.json" for i in range(len(own_agents_list))]
+    stats_filenames = [str(Path(MODELS_DIR, f"{subdir}/stats{i}.json").resolve()) 
+                       for i in range(len(own_agents_list))]
     processes = []
     for own_agents, stats_filename in zip(own_agents_list, stats_filenames):
         processes.append(play(
@@ -202,7 +205,8 @@ def init_next_round(ranked_models, new_subdir, num_best: int, repopulate_to: int
 def round1(subdir = '0'):
     print("Round 1")
     own_agents_list = [
-        [OwnAgent(agent_name="linear_agent", config=DEFAULT_CONFIG, filename=f"{subdir}/model{i}"),]
+        [OwnAgent(agent_name="linear_agent", config=DEFAULT_CONFIG, 
+                  filepath=str(Path(MODELS_DIR, f"{subdir}/model{i}.pt").resolve()))]
         for i in range(5)
     ]
     print("Training")
@@ -219,10 +223,9 @@ def round2(ranked_models, subdir = '1'):
     init_next_round(ranked_models, new_subdir=subdir, num_best=1, repopulate_to=5, filename_template="model{}")
     own_agents_list = [
         [OwnAgent(agent_name="linear_agent", config={ 
-            **DEFAULT_CONFIG, 
-            'model_filename': str(Path(MODELS_DIR, f"{subdir}/model{i}.pt").resolve()), 
+            **DEFAULT_CONFIG,
             'override_model': False},
-            filename=f"{subdir}/model{i}")]
+            filepath=str(Path(MODELS_DIR, f"{subdir}/model{i}.pt").resolve()))]
         for i in range(5)
     ]
     print("Training")
