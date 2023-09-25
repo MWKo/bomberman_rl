@@ -122,10 +122,7 @@ def load_stats(own_agents_list, stats_filenames):
 
     return model_stats
 
-    
-def model_stats_comparator(model_stats_0, model_stats_1):
-    stats_0, stats_1 = model_stats_0[1], model_stats_1[1]
-
+def stats_comparator(stats_0, stats_1):
     if stats_0.get('score', 0) < stats_1.get('score', 0):
         return -1
     if stats_0.get('score', 0) > stats_1.get('score', 0):
@@ -142,7 +139,9 @@ def model_stats_comparator(model_stats_0, model_stats_1):
         return -1
     
     return 0
-
+    
+def model_stats_comparator(model_stats_0, model_stats_1):
+    return stats_comparator(model_stats_0[1], model_stats_1[1])
 
 def get_ranked_models(model_stats):
     sorted_model_stats = sorted(model_stats, reverse=True, key=cmp_to_key(model_stats_comparator))
@@ -244,5 +243,64 @@ def main():
     ranked_models = round2(ranked_models)
     shutil.copy(ranked_models[0], Path(MODELS_DIR, f"best_model.pt"))
 
+def final_ranking():
+    best_model_path_objects = [Path(model_path, "best_model.pt") 
+                               for model_path in Path(MODELS_PARENT_DIR).iterdir()]
+    best_models = [str(best_model_path.resolve()) 
+                   for best_model_path in best_model_path_objects if best_model_path.exists()]
+    models_in_tournament = best_models
+
+    def construct_own_agent(path):
+        return OwnAgent(
+            agent_name="linear_agent", 
+            config={ 
+                **DEFAULT_CONFIG,
+                'override_model': False
+            },
+            filepath=path
+        )
+
+    round_number = 0
+    while len(models_in_tournament) > 1:
+        print(f"\n\nRound {round_number + 1}, {len(models_in_tournament)} agents remaining")
+
+        Path(MODELS_PARENT_DIR, f"ft/{round_number}").mkdir(parents=True, exist_ok=True)
+        group_assignments = [
+            [2 * i, 2 * i + 1] for i in range(len(models_in_tournament) // 2)
+        ]
+        if len(models_in_tournament) % 2 == 1:
+            group_assignments[-1].append(len(models_in_tournament) - 1)
+        groups = [[construct_own_agent(models_in_tournament[k]) for k in group] for group in group_assignments]
+        model_stats = test_models(own_agents_list=groups, subdir=f"ft/{round_number}", rounds=100,
+                                  scenario="classic", fill_agent="rule_based_agent", parallel_exec=True)
+        results = {}
+        for (model_path, stats) in model_stats:
+            model_index = models_in_tournament.index(str(model_path.resolve()))
+            results[model_index] = stats
+        
+        round_results = []
+        for group_index, group in enumerate(group_assignments):
+            ranking = sorted(
+                group, reverse=True, 
+                key=cmp_to_key(
+                    lambda o0, o1: stats_comparator(results[o0], results[o1])
+                )
+            )
+            round_results.append([(models_in_tournament[rank], results[rank]) for rank in ranking])
+
+        with Path(MODELS_PARENT_DIR, f"ft/{round_number}", "results.json").open('w') as round_results_file:
+            json.dump(round_results, round_results_file)
+        
+        next_round_path = Path(MODELS_PARENT_DIR, f"ft/{round_number + 1}")
+        next_models_in_tournament = []
+        next_round_path.mkdir(parents=True, exist_ok=True)
+        for group_index, group in enumerate(group_assignments):
+            next_model_path = str(Path(next_round_path, f"model{group_index}.pt").resolve())
+            shutil.copy(round_results[group_index][0][0], next_model_path)
+            next_models_in_tournament.append(next_model_path)
+
+        models_in_tournament = next_models_in_tournament
+        round_number += 1
+
 if __name__ == '__main__':
-    main()
+    final_ranking()
