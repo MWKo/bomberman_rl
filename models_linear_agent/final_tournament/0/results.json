@@ -1,0 +1,138 @@
+[
+   [
+     [
+       "C:\\Users\\Martin\\Documents\\Studium\\Semester\\10\\ML\\project\bomberman_rl\\models\\models_g0.50_lr0.002_eps0.1\best_model.pt",
+       {
+         "bombs": 1355,
+         "coins": 288,
+         "crates": 3391,
+         "invalid": 1872,
+         "kills": 19,
+         "moves": 19902,
+         "rounds": 100,
+         "score": 383,
+         "steps": 23133,
+         "suicides": 24,
+         "time": 46.7249915599823
+       }
+     ],
+     [
+       "C:\\Users\\Martin\\Documents\\Studium\\Semester\\10\\ML\\project\bomberman_rl\\models\\models_g0.75_lr0.0005_eps0.1\best_model.pt",
+       {
+         "bombs": 1019,
+         "coins": 243,
+         "crates": 2894,
+         "invalid": 1348,
+         "kills": 6,
+         "moves": 13492,
+         "rounds": 100,
+         "score": 273,
+         "steps": 15859,
+         "suicides": 43,
+         "time": 29.422135829925537
+       }
+     ]
+   ],
+   [
+     [
+       "C:\\Users\\Martin\\Documents\\Studium\\Semester\\10\\ML\\project\bomberman_rl\\models\\models_g0.75_lr0.002_eps0.1\best_model.pt",
+       {
+         "bombs": 2230,
+         "coins": 258,
+         "crates": 3127,
+         "invalid": 2267,
+         "kills": 16,
+         "moves": 20076,
+         "rounds": 100,
+         "score": 338,
+         "steps": 24575,
+         "suicides": 42,
+         "time": 50.518150329589844
+       }
+     ],
+     [
+       "C:\\Users\\Martin\\Documents\\Studium\\Semester\\10\\ML\\project\bomberman_rl\\models\\models_g0.75_lr0.002_eps0.1_4xbatch\best_model.pt",
+       {
+         "bombs": 2025,
+         "coins": 286,
+         "crates": 3310,
+         "invalid": 1853,
+         "kills": 9,
+         "moves": 22532,
+         "rounds": 100,
+         "score": 331,
+         "steps": 26534,
+         "suicides": 30,
+         "time": 59.33275628089905
+       }
+     ]
+   ],
+   [
+     [
+       "C:\\Users\\Martin\\Documents\\Studium\\Semester\\10\\ML\\project\bomberman_rl\\models\\models_g0.75_lr0.002_eps0.1_halfbatch\best_model.pt",
+       {
+         "bombs": 1868,
+         "coins": 277,
+         "crates": 3190,
+         "invalid": 1932,
+         "kills": 14,
+         "moves": 22378,
+         "rounds": 100,
+         "score": 347,
+         "steps": 26179,
+         "suicides": 25,
+         "time": 61.843517780303955
+       }
+     ],
+     [
+       "C:\\Users\\Martin\\Documents\\Studium\\Semester\\10\\ML\\project\bomberman_rl\\models\\models_g0.75_lr0.002_eps0.1_noper\best_model.pt",
+       {
+         "bombs": 2128,
+         "coins": 238,
+         "crates": 2952,
+         "invalid": 1933,
+         "kills": 18,
+         "moves": 16992,
+         "rounds": 100,
+         "score": 328,
+         "steps": 21071,
+         "suicides": 45,
+         "time": 43.745840311050415
+       }
+     ]
+   ],
+   [
+     [
+       "C:\\Users\\Martin\\Documents\\Studium\\Semester\\10\\ML\\project\bomberman_rl\\models\\models_g0.90_lr0.002_eps0.1\best_model.pt",
+       {
+         "bombs": 2095,
+         "coins": 281,
+         "crates": 3304,
+         "invalid": 2119,
+         "kills": 14,
+         "moves": 23882,
+         "rounds": 100,
+         "score": 351,
+         "steps": 28107,
+         "suicides": 20,
+         "time": 63.5105619430542
+       }
+     ],
+     [
+       "C:\\Users\\Martin\\Documents\\Studium\\Semester\\10\\ML\\project\bomberman_rl\\models\\models_g0.98_lr0.01_eps0.1\best_model.pt",
+       {
+         "bombs": 1724,
+         "coins": 233,
+         "crates": 3126,
+         "invalid": 2166,
+         "kills": 23,
+         "moves": 19461,
+         "rounds": 100,
+         "score": 348,
+         "steps": 25022,
+         "suicides": 51,
+         "time": 48.23174691200256
+       }
+     ]
+   ]
+ ]

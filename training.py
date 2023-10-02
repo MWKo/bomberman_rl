@@ -13,6 +13,7 @@ from settings import MAX_AGENTS
 
 MODELS_PARENT_DIR = './models'
 MODELS_DIR = MODELS_PARENT_DIR + '/models'
+AGENT_NAME = "linear_agent"
 
 DEFAULT_CONFIG = {
 }
@@ -128,6 +129,11 @@ def stats_comparator(stats_0, stats_1):
     if stats_0.get('score', 0) > stats_1.get('score', 0):
         return +1
     
+    if stats_0.get('kills', 0) < stats_1.get('kills', 0):
+        return -1
+    if stats_0.get('kills', 0) > stats_1.get('kills', 0):
+        return +1
+    
     if stats_0.get('suicides', 0) < stats_1.get('suicides', 0):
         return +1
     if stats_0.get('suicides', 0) > stats_1.get('suicides', 0):
@@ -204,7 +210,7 @@ def init_next_round(ranked_models, new_subdir, num_best: int, repopulate_to: int
 def round1(subdir = '0'):
     print("Round 1")
     own_agents_list = [
-        [OwnAgent(agent_name="linear_agent", config=DEFAULT_CONFIG, 
+        [OwnAgent(agent_name=AGENT_NAME, config=DEFAULT_CONFIG, 
                   filepath=str(Path(MODELS_DIR, f"{subdir}/model{i}.pt").resolve()))]
         for i in range(5)
     ]
@@ -221,7 +227,7 @@ def round2(ranked_models, subdir = '1'):
     print("\n\nRound 2")
     init_next_round(ranked_models, new_subdir=subdir, num_best=1, repopulate_to=5, filename_template="model{}")
     own_agents_list = [
-        [OwnAgent(agent_name="linear_agent", config={ 
+        [OwnAgent(agent_name=AGENT_NAME, config={ 
             **DEFAULT_CONFIG,
             'override_model': False},
             filepath=str(Path(MODELS_DIR, f"{subdir}/model{i}.pt").resolve()))]
@@ -252,7 +258,7 @@ def final_ranking():
 
     def construct_own_agent(path):
         return OwnAgent(
-            agent_name="linear_agent", 
+            agent_name=AGENT_NAME, 
             config={ 
                 **DEFAULT_CONFIG,
                 'override_model': False
@@ -295,12 +301,13 @@ def final_ranking():
         next_models_in_tournament = []
         next_round_path.mkdir(parents=True, exist_ok=True)
         for group_index, group in enumerate(group_assignments):
-            next_model_path = str(Path(next_round_path, f"model{group_index}.pt").resolve())
-            shutil.copy(round_results[group_index][0][0], next_model_path)
-            next_models_in_tournament.append(next_model_path)
+            best_model_path = str(Path(next_round_path, f"model{group_index}.pt").resolve())
+            shutil.copy(round_results[group_index][0][0], best_model_path)
+            next_models_in_tournament.append(round_results[group_index][0][0])
 
         models_in_tournament = next_models_in_tournament
         round_number += 1
 
 if __name__ == '__main__':
     final_ranking()
+    #main()

@@ -1,0 +1,1 @@
+{"exploration": {"epsilon": 0.1, "action_probabilities": [0.2, 0.2, 0.2, 0.2, 0.1, 0.1]}, "learning_rate": 0.002, "gamma": 0.9, "batch_size": 50, "n_training_per_batch": 25, "per": {"error_clip": 3, "error_offset": 0.001, "priority_scale": 0.6, "b": 0.4}, "model_filename": "C:\\Users\\Martin\\Documents\\Studium\\Semester\\10\\ML\\project\\bomberman_rl\\models\\0\\model3.pt"}

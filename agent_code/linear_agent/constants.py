@@ -66,7 +66,7 @@ CRATE_MOVE_AVOIDED = "CRATE_MOVE_AVOIDED"
 
 
 DEFAULT_CONFIG = {
-    'model_filename': "linear_model.pt",
+    'model_filename': "model0.pt",
     'override_model': True,
     'exploration': {
         'epsilon': 0.1,
